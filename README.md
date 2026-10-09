@@ -66,7 +66,7 @@ dashboard-analytics/
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/SEU-USUARIO/dashboard-analytics.git
+git clone https://github.com/adanwilliamdev/dashboard-analytics.git
 cd dashboard-analytics
 ```
 
