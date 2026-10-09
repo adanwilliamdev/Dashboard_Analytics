@@ -1,0 +1,26 @@
+services:
+  api:
+    build: .
+    container_name: dashboard_api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./dashboard.db
+      - SECRET_KEY=dev_secret_key_troque_em_producao_12345
+      - API_BASE_URL=http://api:8000
+    volumes:
+      - ./:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  dashboard:
+    build: .
+    container_name: dashboard_ui
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://api:8000
+    volumes:
+      - ./:/app
+    depends_on:
+      - api
+    command: streamlit run dashboard/app.py --server.port=8501 --server.address=0.0.0.0
