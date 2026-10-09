@@ -1,127 +1,245 @@
-# Dashboard Analytics
+# 📊 Dashboard Analytics
 
-Projeto completo de portfolio: **API RESTful (FastAPI) + Dashboard interativo (Streamlit)** para analise de financas pessoais ou metricas de e-commerce.
+**API RESTful com FastAPI e dashboard interativo com Streamlit para análise de dados financeiros e métricas de e-commerce.**
 
-## Funcionalidades
+O **Dashboard Analytics** é um projeto de portfólio que combina engenharia de dados, desenvolvimento backend e visualização de informações, permitindo gerenciar transações e acompanhar indicadores por meio de gráficos e análises interativas.
 
-- Autenticacao JWT com hash bcrypt
-- CRUD completo de transacoes
-- Analytics com Pandas: resumo, categorias, series temporais, top despesas
-- Dashboard Streamlit interativo com Plotly
-- Docker & Docker Compose
-- Testes automatizados com pytest
-- Documentacao automatica (Swagger/ReDoc)
+## ✨ Funcionalidades
 
-## Stack
+- 🔐 **Autenticação JWT** com senhas protegidas por hash bcrypt.
+- 💳 **CRUD de transações** para cadastrar, consultar, atualizar e excluir registros.
+- 📈 **Análise de dados** com Pandas e NumPy.
+- 🗂️ **Análise por categoria** para identificar padrões de receitas e despesas.
+- 📅 **Séries temporais** para acompanhar a evolução dos indicadores.
+- 💰 **Resumo financeiro** com receitas, despesas e saldo.
+- 🏆 **Ranking de despesas** para identificar os maiores gastos.
+- 📊 **Dashboard interativo** com Streamlit e Plotly.
+- 🐳 **Containerização** com Docker e Docker Compose.
+- 🧪 **Testes automatizados** com pytest.
+- 📚 **Documentação da API** com Swagger UI e ReDoc.
 
-| Camada   | Tecnologia                          |
-|----------|-------------------------------------|
-| Backend  | FastAPI + SQLAlchemy + Pydantic     |
-| Banco    | SQLite (dev) / PostgreSQL (prod)    |
-| Dados    | Pandas + NumPy                      |
-| Frontend | Streamlit + Plotly                  |
-| Auth     | JWT (python-jose) + passlib[bcrypt] |
-| DevOps   | Docker + Docker Compose             |
+## 🛠️ Stack Tecnológica
 
-## Quickstart (local)
+| Camada | Tecnologias |
+|---|---|
+| Backend | Python, FastAPI |
+| ORM e validação | SQLAlchemy, Pydantic |
+| Banco de dados | SQLite, PostgreSQL |
+| Análise de dados | Pandas, NumPy |
+| Frontend | Streamlit, Plotly |
+| Autenticação | JWT, python-jose, passlib[bcrypt] |
+| Testes | pytest |
+| DevOps | Docker, Docker Compose |
+| Documentação | Swagger UI, ReDoc |
 
-### 1. Ambiente virtual
+## 📁 Estrutura do Projeto
 
-    python -m venv .venv
-    source .venv/bin/activate       # Linux/macOS
-    .venv\Scripts\activate          # Windows
-    pip install -r requirements.txt
+```text
+dashboard-analytics/
+├── app/
+│   ├── main.py
+│   ├── config.py
+│   ├── database.py
+│   ├── models.py
+│   ├── schemas.py
+│   ├── auth.py
+│   ├── analytics.py
+│   └── routers/
+├── dashboard/
+│   └── app.py
+├── tests/
+├── seed_data.py
+├── .env.example
+├── Dockerfile
+├── docker-compose.yml
+└── requirements.txt
+```
 
-### 2. Configuracao
+## 🚀 Como Executar Localmente
 
-    cp .env.example .env
+### Pré-requisitos
 
-### 3. Popular dados de exemplo (opcional)
+- Python 3.10 ou superior
+- pip
+- Git
 
-    python seed_data.py
+### 1. Clone o repositório
 
-Cria usuario: demo / demo123
+```bash
+git clone https://github.com/SEU-USUARIO/dashboard-analytics.git
+cd dashboard-analytics
+```
 
-### 4. Subir a API
+Substitua `SEU-USUARIO` pelo seu nome de usuário do GitHub e ajuste a URL conforme o repositório criado.
 
-    uvicorn app.main:app --reload --port 8000
+### 2. Crie e ative o ambiente virtual
 
-Acesse: http://localhost:8000/docs
+**Windows (PowerShell):**
 
-### 5. Subir o Dashboard (outro terminal)
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
 
-    streamlit run dashboard/app.py
+**Linux/macOS:**
 
-Acesse: http://localhost:8501
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
 
-## Docker
+### 3. Instale as dependências
 
-    docker compose up --build
+```bash
+pip install -r requirements.txt
+```
 
-- API: http://localhost:8000/docs
-- Dashboard: http://localhost:8501
+### 4. Configure as variáveis de ambiente
 
-## Testes
+Copie o arquivo de exemplo:
 
-    pytest -v
+```bash
+cp .env.example .env
+```
 
-## Endpoints principais
+No Windows PowerShell, utilize:
 
-### Auth
+```powershell
+Copy-Item .env.example .env
+```
 
-| Metodo | Rota           | Descricao            |
-|--------|----------------|----------------------|
-| POST   | /auth/register | Cadastro de usuario  |
-| POST   | /auth/login    | Login (retorna JWT)  |
-| GET    | /auth/me       | Dados do usuario     |
+Configure as variáveis necessárias no arquivo `.env`, incluindo a URL do banco de dados e a chave secreta utilizada na autenticação.
 
-### Transacoes
+### 5. Gere os dados de demonstração
 
-| Metodo | Rota               | Descricao            |
-|--------|--------------------|----------------------|
-| POST   | /transactions/     | Criar transacao      |
-| GET    | /transactions/     | Listar transacoes    |
-| GET    | /transactions/{id} | Buscar transacao     |
-| PUT    | /transactions/{id} | Atualizar transacao  |
-| DELETE | /transactions/{id} | Excluir transacao    |
+```bash
+python seed_data.py
+```
+
+O script disponibiliza dados de exemplo e cria o usuário de demonstração:
+
+- **Usuário:** `demo`
+- **Senha:** `demo123`
+
+> **Atenção:** utilize essas credenciais somente em ambiente local de demonstração. Nunca publique senhas reais ou chaves secretas no repositório.
+
+### 6. Inicie a API
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+Acesse a documentação interativa:
+
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+### 7. Inicie o dashboard
+
+Em outro terminal, com o ambiente virtual ativado, execute:
+
+```bash
+streamlit run dashboard/app.py
+```
+
+Acesse o dashboard em:
+
+http://localhost:8501
+
+## 🐳 Executando com Docker
+
+Com o Docker e o Docker Compose instalados, execute:
+
+```bash
+docker compose up --build
+```
+
+Serviços disponíveis:
+
+| Serviço | URL |
+|---|---|
+| API REST | http://localhost:8000 |
+| Swagger UI | http://localhost:8000/docs |
+| ReDoc | http://localhost:8000/redoc |
+| Dashboard | http://localhost:8501 |
+
+Para encerrar os serviços:
+
+```bash
+docker compose down
+```
+
+## 🔌 Endpoints da API
+
+### Autenticação
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `POST` | `/auth/register` | Cadastra um usuário |
+| `POST` | `/auth/login` | Autentica e retorna um JWT |
+| `GET` | `/auth/me` | Retorna os dados do usuário autenticado |
+
+### Transações
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `POST` | `/transactions/` | Cria uma transação |
+| `GET` | `/transactions/` | Lista transações |
+| `GET` | `/transactions/{id}` | Consulta uma transação |
+| `PUT` | `/transactions/{id}` | Atualiza uma transação |
+| `DELETE` | `/transactions/{id}` | Exclui uma transação |
 
 ### Analytics
 
-| Metodo | Rota                     | Descricao                       |
-|--------|--------------------------|---------------------------------|
-| GET    | /analytics/summary       | Receitas, despesas e saldo      |
-| GET    | /analytics/by-category   | Totais agrupados por categoria  |
-| GET    | /analytics/timeseries    | Serie diaria (income/expense)   |
-| GET    | /analytics/top-expenses  | Maiores despesas                |
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `GET` | `/analytics/summary` | Retorna receitas, despesas e saldo |
+| `GET` | `/analytics/by-category` | Agrupa valores por categoria |
+| `GET` | `/analytics/timeseries` | Retorna séries temporais de receitas e despesas |
+| `GET` | `/analytics/top-expenses` | Lista as maiores despesas |
 
-## Estrutura
+> Os endpoints e seus parâmetros devem ser conferidos na documentação Swagger da aplicação.
 
-    dashboard-analytics/
-    |-- app/                 # Backend FastAPI
-    |   |-- main.py
-    |   |-- config.py
-    |   |-- database.py
-    |   |-- models.py
-    |   |-- schemas.py
-    |   |-- auth.py
-    |   |-- analytics.py
-    |   `-- routers/
-    |-- dashboard/           # Frontend Streamlit
-    |   `-- app.py
-    |-- tests/               # Testes pytest
-    |-- seed_data.py         # Dados de exemplo
-    |-- Dockerfile
-    |-- docker-compose.yml
-    `-- requirements.txt
+## 🧪 Executando os Testes
 
-## Migrando para PostgreSQL
+Execute a suíte de testes com:
 
-No .env:
+```bash
+pytest -v
+```
 
-    DATABASE_URL=postgresql://user:password@localhost:5432/dashboard
+Para obter um relatório de cobertura, caso `pytest-cov` esteja instalado:
 
-O driver psycopg2-binary ja esta no requirements.txt.
+```bash
+pytest --cov=app --cov-report=term-missing
+```
 
-## Licenca
+## 🗄️ Configuração do PostgreSQL
 
-MIT
+Por padrão, o projeto pode utilizar SQLite no ambiente de desenvolvimento. Para utilizar PostgreSQL, configure a variável `DATABASE_URL` no arquivo `.env`:
+
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/dashboard
+```
+
+O driver `psycopg2-binary` deve estar instalado para conexões PostgreSQL síncronas.
+
+> **Importante:** a URL e o driver precisam ser compatíveis com a configuração do SQLAlchemy utilizada no projeto. Se a aplicação utilizar conexões assíncronas, será necessário configurar um driver assíncrono, como `asyncpg`.
+
+## 🎯 Objetivos do Projeto
+
+Este projeto demonstra conhecimentos práticos em:
+
+- Desenvolvimento de APIs REST com Python e FastAPI.
+- Modelagem de dados e integração com bancos relacionais.
+- Autenticação e controle de acesso com JWT.
+- Manipulação e análise de dados com Pandas e NumPy.
+- Criação de dashboards e visualizações com Plotly.
+- Testes automatizados e organização de código.
+- Containerização e configuração de ambientes com Docker.
+
+## 📄 Licença
+
+Este projeto está licenciado sob a licença MIT.
+
+Consulte o arquivo `LICENSE` para obter os termos completos.
