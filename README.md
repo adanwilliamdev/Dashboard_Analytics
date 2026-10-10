@@ -1,118 +1,478 @@
 # 📊 Dashboard Analytics
 
-**API FastAPI + dashboard Streamlit para análise de finanças pessoais**: transações, orçamentos, comparativos, previsão de gastos, detecção de anomalias e insights automáticos.
+**Plataforma de análise de finanças pessoais com Python, FastAPI e Streamlit.**
 
-> Projeto de portfólio que combina backend, engenharia de dados e visualização.
+API RESTful e dashboard interativo para gerenciamento de transações, controle de orçamentos, análise de despesas, previsão financeira e geração de relatórios.
+
+O projeto combina **desenvolvimento backend, engenharia de dados, análise estatística e visualização de dados** em uma aplicação modular, com autenticação, testes automatizados e suporte a Docker.
+
+---
 
 ## ✨ Funcionalidades
 
-| Área | O que tem |
+### 🔐 Autenticação e segurança
+- Autenticação baseada em JWT com PyJWT e senhas protegidas com bcrypt.
+- Cadastro, login, consulta de perfil e alteração de senha.
+- Política de senhas com mínimo de 8 caracteres.
+- Proteção contra tentativas excessivas de login, com resposta HTTP `429`.
+- Controle de acesso baseado em perfis: `user`, `viewer` e `admin`.
+- Gerenciamento e desativação de contas administrativas.
+
+### 💳 Gerenciamento de transações
+- CRUD completo de receitas e despesas.
+- Filtros por texto, tipo, categoria, período e faixa de valores.
+- Ordenação e paginação de resultados.
+- Importação e exportação de transações em CSV, incluindo valores no formato brasileiro.
+- Exportação de dados para Excel.
+
+### 🎯 Controle de orçamentos
+- Definição de limites mensais por categoria.
+- Acompanhamento do consumo dos orçamentos.
+- Projeção de gastos até o final do mês.
+- Identificação de categorias com risco de ultrapassar o limite.
+
+### 📈 Análise financeira
+- Resumo financeiro com comparação entre períodos.
+- Cálculo da taxa de poupança.
+- Séries temporais diárias com saldo acumulado e média móvel.
+- Comparativos mensais de receitas e despesas.
+- Análise de gastos por categoria e dia da semana.
+- Identificação das maiores despesas.
+
+### 🔮 Previsão e detecção de anomalias
+- Projeção de despesas e saldo para os próximos 30 dias.
+- Modelo estatístico com nível, tendência amortecida e sazonalidade semanal.
+- Intervalo de previsão aproximado de 80%.
+- Detecção de gastos atípicos usando z-score modificado e histórico individual de transações.
+- Identificação de despesas recorrentes, como assinaturas e contas mensais.
+
+### 💡 Dashboard e relatórios
+- Interface interativa desenvolvida com Streamlit e Plotly.
+- Cinco abas: visão geral, análises, orçamentos, transações e insights.
+- Carregamento consolidado dos dados do dashboard por meio do endpoint `/analytics/overview`.
+- Insights automáticos gerados a partir dos dados financeiros.
+- Relatórios Excel com resumo, transações, categorias e comparativo mensal.
+- Relatório executivo em PDF para o período selecionado.
+
+### ⚡ Infraestrutura e qualidade
+- API RESTful com FastAPI.
+- Persistência em banco de dados relacional.
+- Migrações versionadas com Alembic.
+- Valores monetários armazenados em `NUMERIC(12,2)`.
+- Cache por usuário com TTL de 30 segundos, utilizando memória ou Redis.
+- Testes automatizados com pytest.
+- Padronização e análise estática de código com Ruff.
+- Integração contínua com GitHub Actions.
+- Containerização com Docker e Docker Compose.
+- Healthchecks e execução da API sem privilégios de root.
+
+---
+
+## 🛠️ Tecnologias
+
+| Categoria | Tecnologias |
 |---|---|
-| 🔐 Autenticação | JWT (PyJWT), bcrypt, bloqueio de força bruta no login (429), troca de senha, política de senha (mín. 8) |
-| 💳 Transações | CRUD, filtros (texto, tipo, categoria, período, faixa de valor), ordenação, paginação (`X-Total-Count`), **importação e exportação CSV** (aceita formato pt-BR) |
-| 🎯 Orçamentos | Limite mensal por categoria, consumo em tempo real, projeção de estouro até o fim do mês |
-| 📈 Análises | Resumo com **comparação com o período anterior**, taxa de poupança, série diária sem buracos + saldo acumulado + média móvel, comparativo mensal, perfil por dia da semana |
-| 🔮 Previsão | Projeção de despesas e saldo para 30 dias (nível + tendência amortecida + sazonalidade semanal) com faixa de ~80% |
-| ⚠️ Anomalias | Gastos fora do padrão (z-score modificado, comparando cada item com o próprio histórico) |
-| 🔁 Recorrentes | Detecta assinaturas e contas mensais e prevê a próxima data |
-| 💡 Insights | Frases prontas em português geradas a partir dos dados |
-| 📊 Dashboard | 5 abas (visão geral, análises, orçamentos, transações, insights), uma única chamada à API (`/analytics/overview`) |
-| 📤 Relatórios | Excel (Resumo, Transações, Categorias, Mensal) e **PDF executivo** do período |
-| ⚡ Cache | Visão geral em cache por usuário (30 s), invalidado a cada escrita; memória ou **Redis** (`REDIS_URL`) |
-| 👥 Perfis | `user`, `viewer` (somente leitura) e `admin` (gerencia perfis e desativa contas em `/admin/users`) |
-| 🗄️ Migrações | **Alembic** (`alembic upgrade head`), valores monetários em `NUMERIC(12,2)` |
-| 🧪 Qualidade | Testes de unidade (núcleo analítico/CSV) e de API, CI no GitHub Actions, ruff |
-| 🐳 Deploy | Docker não-root com healthchecks, Postgres no compose, override de desenvolvimento |
+| Linguagem | Python |
+| API e backend | FastAPI, Uvicorn |
+| Dados e análise | Pandas, NumPy |
+| Dashboard e gráficos | Streamlit, Plotly |
+| Banco de dados | PostgreSQL |
+| ORM e migrações | SQLAlchemy 2, Alembic |
+| Autenticação | PyJWT, bcrypt |
+| Cache | Redis |
+| Relatórios | OpenPyXL, ReportLab |
+| Testes e qualidade | pytest, Ruff |
+| Infraestrutura | Docker, Docker Compose |
+| CI/CD | GitHub Actions |
+
+---
 
 ## 🏗️ Arquitetura
 
+A aplicação separa as responsabilidades entre API, núcleo analítico, persistência, geração de relatórios e interface de visualização.
+
 ```text
-app/
-├── main.py              # FastAPI, middlewares (CORS, gzip, tempo de resposta), /health com ping no banco
-├── config.py            # Settings (.env) + validação de SECRET_KEY em produção
-├── database.py / models.py / schemas.py
-├── auth.py / security.py
-├── analytics_core.py    # análise PURA (pandas/numpy): sem banco, 100% testável
-├── analytics.py         # carrega do banco e delega ao núcleo
-├── csv_io.py            # parser tolerante de CSV
-├── reports.py           # Excel e PDF (funções puras)
-├── cache.py             # cache por usuário (memória/Redis)
-└── routers/             # auth, transactions, budgets, analytics, admin
-migrations/              # Alembic (0001 baseline, 0002 orçamentos/perfis/NUMERIC)
-dashboard/app.py         # Streamlit
-tests/                   # pytest
+dashboard-analytics/
+├── app/
+│   ├── main.py
+│   ├── config.py
+│   ├── database.py
+│   ├── models.py
+│   ├── schemas.py
+│   ├── auth.py
+│   ├── security.py
+│   ├── analytics_core.py
+│   ├── analytics.py
+│   ├── csv_io.py
+│   ├── reports.py
+│   ├── cache.py
+│   └── routers/
+│       ├── auth.py
+│       ├── transactions.py
+│       ├── budgets.py
+│       ├── analytics.py
+│       └── admin.py
+├── migrations/
+├── dashboard/
+│   └── app.py
+├── tests/
+├── seed_data.py
+├── requirements-dev.txt
+├── docker-compose.yml
+├── .env.example
+└── README.md
 ```
 
-## 🚀 Executando localmente
+### Organização dos componentes
+
+- **API:** autenticação, validação, regras de negócio e endpoints REST.
+- **Núcleo analítico:** cálculos estatísticos desacoplados do banco, facilitando testes unitários.
+- **Persistência:** modelos relacionais, consultas e migrações de esquema.
+- **Dashboard:** visualização interativa e consumo consolidado dos dados da API.
+- **Relatórios:** geração de arquivos Excel e PDF.
+- **Cache:** redução de consultas repetidas e invalidação após operações de escrita.
+- **Testes:** validação das regras analíticas, importação de CSV e endpoints.
+
+---
+
+## 🚀 Como executar localmente
+
+### Pré-requisitos
+
+- Python 3.11 ou superior, conforme as dependências do projeto.
+- pip.
+- PostgreSQL, caso não utilize Docker.
+- Git.
+
+### 1. Clone o repositório
+
+```bash
+git clone https://github.com/SEU_USUARIO/dashboard-analytics.git
+cd dashboard-analytics
+```
+
+Substitua `SEU_USUARIO` pelo seu nome de usuário do GitHub e ajuste o nome do repositório, se necessário.
+
+### 2. Crie e ative o ambiente virtual
+
+**Windows PowerShell**
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+**Linux/macOS**
 
 ```bash
 python -m venv .venv
-# Windows: .\.venv\Scripts\Activate.ps1   |   Linux/macOS: source .venv/bin/activate
+source .venv/bin/activate
+```
+
+### 3. Instale as dependências
+
+```bash
 pip install -r requirements-dev.txt
-cp .env.example .env            # Windows: Copy-Item .env.example .env
-python seed_data.py             # usuário demo: demo / demo1234  (6 meses de dados)
-uvicorn app.main:app --reload   # API em http://localhost:8000/docs
-streamlit run dashboard/app.py  # em outro terminal: http://localhost:8501
 ```
 
-Opções do seed: `--months 12`, `--reset` (recria os dados do usuário demo).
+### 4. Configure as variáveis de ambiente
 
-## 🐳 Docker
+Copie o arquivo de exemplo:
+
+```powershell
+# Windows PowerShell
+Copy-Item .env.example .env
+```
 
 ```bash
-cp .env.example .env     # defina SECRET_KEY e POSTGRES_PASSWORD
-docker compose up --build                              # desenvolvimento (hot-reload da API)
-docker compose -f docker-compose.yml up -d --build     # estável (sem override)
+# Linux/macOS
+cp .env.example .env
 ```
 
-Com `APP_ENV=production` a API **recusa subir** com `SECRET_KEY` fraca. Gere uma com:
-`python -c "import secrets; print(secrets.token_urlsafe(48))"`.
+Configure a URL do banco de dados, a chave secreta da aplicação e as demais variáveis necessárias no arquivo `.env`.
 
-## 🔌 Endpoints principais
+**Importante:** não compartilhe credenciais, chaves secretas ou arquivos `.env` no repositório.
 
-| Método | Rota | Descrição |
+### 5. Inicialize os dados de demonstração
+
+```bash
+python seed_data.py
+```
+
+O script cria dados demonstrativos para o usuário:
+
+| Campo | Valor |
+|---|---|
+| Usuário | `demo` |
+| Senha | `demo1234` |
+| Dados iniciais | 6 meses de histórico |
+
+O script também aceita opções para personalizar a quantidade de dados:
+
+```bash
+python seed_data.py --months 12
+```
+
+Para recriar os dados do usuário de demonstração:
+
+```bash
+python seed_data.py --reset
+```
+
+Utilize as credenciais demonstrativas apenas no ambiente local.
+
+### 6. Inicie a API
+
+```bash
+uvicorn app.main:app --reload
+```
+
+A API estará disponível em `http://localhost:8000`.
+
+- **Swagger UI:** http://localhost:8000/docs
+- **ReDoc:** http://localhost:8000/redoc
+- **Healthcheck:** http://localhost:8000/health
+
+### 7. Inicie o dashboard
+
+Em outro terminal, com o ambiente virtual ativado:
+
+```bash
+streamlit run dashboard/app.py
+```
+
+Acesse o dashboard em `http://localhost:8501`.
+
+---
+
+## 🐳 Executando com Docker
+
+Certifique-se de ter Docker e Docker Compose instalados.
+
+### 1. Configure o ambiente
+
+```bash
+cp .env.example .env
+```
+
+No Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Defina os valores necessários, incluindo `SECRET_KEY` e `POSTGRES_PASSWORD`.
+
+### 2. Inicie os serviços
+
+**Desenvolvimento, com hot reload da API:**
+
+```bash
+docker compose up --build
+```
+
+**Execução estável, sem o override de desenvolvimento:**
+
+```bash
+docker compose -f docker-compose.yml up -d --build
+```
+
+A disponibilidade dos serviços depende da configuração definida nos arquivos Compose.
+
+Para acompanhar os logs:
+
+```bash
+docker compose logs -f
+```
+
+Para encerrar os serviços:
+
+```bash
+docker compose down
+```
+
+### Segurança em produção
+
+Com `APP_ENV=production`, a aplicação rejeita uma `SECRET_KEY` fraca.
+
+Gere uma chave segura com:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Configure a chave gerada nas variáveis de ambiente. Não utilize a chave de exemplo em produção.
+
+---
+
+## 🔌 Principais endpoints
+
+### Autenticação
+
+| Método | Endpoint | Descrição |
 |---|---|---|
-| POST | `/auth/register`, `/auth/login` | Cadastro e login (JWT) |
-| GET/POST | `/auth/me`, `/auth/change-password` | Perfil e troca de senha |
-| GET/POST | `/transactions/` | Lista (filtros: `q`, `type`, `category`, `start_date`, `end_date`, `min_amount`, `max_amount`, `sort_by`, `order`, `skip`, `limit`) / cria |
-| GET/PUT/DELETE | `/transactions/{id}` | Consulta, atualiza, exclui |
-| GET | `/transactions/export`, `/transactions/export.xlsx` | CSV / Excel com os mesmos filtros |
-| POST | `/transactions/import` | Importa CSV (`descricao;valor;categoria;tipo;data`) |
-| GET | `/transactions/categories` | Categorias do usuário |
-| GET/PUT/DELETE | `/budgets/`, `/budgets/{categoria}` | Orçamentos mensais |
-| GET | `/analytics/overview?days=30` | **Tudo do dashboard em uma chamada** (com cache) |
-| GET | `/analytics/report.pdf?days=30` | Relatório executivo em PDF |
-| GET/PUT | `/admin/users`, `/admin/users/{id}/role`, `/admin/users/{id}/active` | Somente admin |
-| GET | `/analytics/summary`, `/by-category`, `/timeseries`, `/monthly`, `/weekday`, `/top-expenses`, `/forecast`, `/anomalies`, `/recurring`, `/budgets` | Análises individuais |
+| POST | `/auth/register` | Cadastro de usuário |
+| POST | `/auth/login` | Autenticação e emissão de JWT |
+| GET | `/auth/me` | Consulta do perfil autenticado |
+| POST | `/auth/change-password` | Alteração de senha |
 
-## 🧪 Testes
+### Transações
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| GET | `/transactions/` | Lista transações com filtros |
+| POST | `/transactions/` | Cria uma transação |
+| GET | `/transactions/{id}` | Consulta uma transação |
+| PUT | `/transactions/{id}` | Atualiza uma transação |
+| DELETE | `/transactions/{id}` | Exclui uma transação |
+| GET | `/transactions/export` | Exporta transações em CSV |
+| GET | `/transactions/export.xlsx` | Exporta transações em Excel |
+| POST | `/transactions/import` | Importa transações por CSV |
+| GET | `/transactions/categories` | Lista categorias do usuário |
+
+**Filtros disponíveis:** `q`, `type`, `category`, `start_date`, `end_date`, `min_amount`, `max_amount`, `sort_by`, `order`, `skip` e `limit`.
+
+### Orçamentos
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| GET | `/budgets/` | Consulta orçamentos |
+| PUT | `/budgets/{categoria}` | Cria ou atualiza o limite por categoria |
+| DELETE | `/budgets/{categoria}` | Remove um orçamento |
+
+### Análises e relatórios
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| GET | `/analytics/overview?days=30` | Dados consolidados do dashboard |
+| GET | `/analytics/summary` | Resumo financeiro |
+| GET | `/analytics/by-category` | Gastos por categoria |
+| GET | `/analytics/timeseries` | Série temporal |
+| GET | `/analytics/monthly` | Comparativo mensal |
+| GET | `/analytics/weekday` | Perfil de gastos por dia da semana |
+| GET | `/analytics/top-expenses` | Maiores despesas |
+| GET | `/analytics/forecast` | Previsão financeira |
+| GET | `/analytics/anomalies` | Detecção de gastos atípicos |
+| GET | `/analytics/recurring` | Despesas recorrentes |
+| GET | `/analytics/budgets` | Análise de orçamentos |
+| GET | `/analytics/report.pdf?days=30` | Relatório executivo em PDF |
+
+### Administração
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| GET | `/admin/users` | Lista usuários |
+| PUT | `/admin/users/{id}/role` | Altera o perfil de acesso |
+| PUT | `/admin/users/{id}/active` | Ativa ou desativa uma conta |
+
+Os endpoints administrativos exigem permissões adequadas. Consulte a documentação Swagger para verificar os parâmetros, os corpos das requisições e os códigos de resposta.
+
+---
+
+## 🗄️ Migrações de banco de dados
+
+O projeto utiliza Alembic para versionar alterações no esquema.
+
+**Banco novo:**
 
 ```bash
-pytest                        # tudo
-pytest tests/test_analytics_core.py tests/test_csv_io.py   # só o núcleo (não precisa subir a API)
+alembic upgrade head
+```
+
+**Banco legado da versão 1**, que já contém as tabelas `users` e `transactions`:
+
+```bash
+alembic stamp 0001
+alembic upgrade head
+```
+
+**Criar uma nova migração:**
+
+```bash
+alembic revision --autogenerate -m "minha mudança"
+```
+
+A migração `0002` inclui alterações relacionadas a orçamentos, perfis de acesso e precisão monetária, convertendo `amount` para `NUMERIC(12,2)`.
+
+Faça backup antes de migrar bancos com dados importantes. Em produção, confirme o estado do esquema antes de aplicar qualquer migração.
+
+---
+
+## 👥 Perfis de acesso
+
+| Perfil | Permissões |
+|---|---|
+| `user` | Gerenciamento das próprias transações e recursos permitidos |
+| `viewer` | Acesso somente para leitura |
+| `admin` | Gerenciamento de usuários e permissões administrativas |
+
+O primeiro administrador pode ser configurado por meio da variável `ADMIN_USERNAMES` no `.env`.
+
+Exemplo:
+
+```env
+ADMIN_USERNAMES=meu_usuario
+```
+
+O mecanismo de cadastro utiliza essa configuração para atribuir o perfil administrativo ao usuário correspondente. Contas desativadas perdem o acesso, inclusive por meio de tokens anteriormente emitidos, conforme a validação de autenticação da aplicação.
+
+---
+
+## 🧪 Testes e qualidade de código
+
+Execute todos os testes:
+
+```bash
+pytest
+```
+
+Execute apenas os testes do núcleo analítico e do parser CSV:
+
+```bash
+pytest tests/test_analytics_core.py tests/test_csv_io.py
+```
+
+Verifique a qualidade do código:
+
+```bash
 ruff check .
 ```
 
-## 🗄️ Migrações (Alembic)
+O núcleo analítico é separado da camada de persistência, permitindo testar cálculos e regras financeiras sem precisar iniciar a API para esses testes.
 
-```bash
-alembic upgrade head                 # banco novo: cria tudo
-alembic stamp 0001 && alembic upgrade head   # banco criado pela v1 (já tem users/transactions)
-alembic revision --autogenerate -m "minha mudança"   # novas migrações
-```
+O projeto também conta com integração contínua via GitHub Actions.
 
-No Docker a API roda `alembic upgrade head` ao subir (`AUTO_CREATE_TABLES=false`). Faça **backup do banco** antes de migrar um banco com dados reais: a 0002 converte `amount` para `NUMERIC(12,2)`.
+---
 
-## 👥 Perfis
+## ⚙️ Cache e desempenho
 
-O primeiro admin nasce por configuração: `ADMIN_USERNAMES=meu_usuario` no `.env` (vale no cadastro). Depois ele promove/rebaixa pelos endpoints `/admin`. Usuários desativados perdem o acesso na hora (inclusive tokens já emitidos).
+O endpoint `/analytics/overview` consolida os dados necessários para as cinco abas do dashboard, reduzindo chamadas repetidas à API.
 
-## ⚠️ Notas
+- Cache por usuário com TTL de 30 segundos.
+- Invalidação do cache após operações de escrita.
+- Armazenamento em memória ou Redis, conforme `REDIS_URL`.
+- Paginação para consultas de transações.
+- Índices e tipos monetários adequados à persistência financeira.
 
-- **Previsão** é uma estimativa estatística simples, não um modelo de ML nem uma garantia.
-- O limitador de login é em memória (por processo): com vários workers cada um conta separado. O cache usa Redis quando `REDIS_URL` está definido.
-- `.env` nunca deve ir para o repositório.
+**Observação:** o cache em memória não é compartilhado entre processos. Para ambientes com múltiplas instâncias, utilize Redis quando suportado pela configuração do projeto.
+
+---
+
+## 📌 Limitações e considerações
+
+- **Previsões:** estimativas estatísticas baseadas no histórico, sem garantia de resultados futuros.
+- **Anomalias:** a detecção depende da quantidade e da qualidade dos dados históricos disponíveis.
+- **Rate limiting:** o limitador de login em memória é aplicado por processo; múltiplos workers mantêm contadores separados.
+- **Cache:** Redis permite compartilhar o cache entre instâncias quando corretamente configurado.
+- **Segurança:** credenciais de demonstração são destinadas exclusivamente ao ambiente local.
+- **Migrações:** bancos com dados reais devem ser respaldados antes de alterações estruturais.
+
+---
 
 ## 📄 Licença
 
-MIT.
+Este projeto está licenciado sob a licença [MIT](LICENSE).
+
+---
+
+**Desenvolvido com Python para explorar APIs REST, análise de dados, estatística aplicada, visualização e boas práticas de engenharia de software.**
