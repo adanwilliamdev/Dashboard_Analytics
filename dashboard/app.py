@@ -8,6 +8,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 
 API_URL = os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
 TIMEOUT = 20
@@ -19,6 +20,21 @@ st.set_page_config(
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
+)
+
+# O Streamlit serve a pagina com lang="en"; tradutores do navegador (ex.: Chrome Translate) entao
+# reescrevem o DOM e quebram as atualizacoes (valores presos, abas misturadas, textos truncados).
+# Marcamos a pagina como pt-BR e "nao traduzir".
+components.html(
+    """<script>
+    const d = window.parent.document;
+    d.documentElement.setAttribute('lang', 'pt-BR');
+    d.documentElement.setAttribute('translate', 'no');
+    if (!d.querySelector('meta[name="google"]')) {
+      const m = d.createElement('meta'); m.name = 'google'; m.content = 'notranslate'; d.head.appendChild(m);
+    }
+    </script>""",
+    height=0,
 )
 
 st.session_state.setdefault("token", None)
