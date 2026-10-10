@@ -1,11 +1,20 @@
 """Rotas de autenticacao e cadastro."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.auth import create_access_token, hash_password, verify_password, get_current_user
+from app.auth import (
+    burn_password_check,
+    create_access_token,
+    get_current_user,
+    hash_password,
+    verify_password,
+)
+from app.config import settings
 from app.database import get_db
+from app.security import login_limiter
 
 router = APIRouter(prefix="/auth", tags=["Autenticacao"])
 
@@ -21,23 +30,43 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
         username=user.username,
         email=user.email,
         hashed_password=hash_password(user.password),
+        role="admin" if user.username.lower() in settings.admin_usernames else "user",
     )
     db.add(new_user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # corrida entre dois cadastros simultaneos
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Username ou e-mail ja cadastrado")
     db.refresh(new_user)
     return new_user
 
 
 @router.post("/login", response_model=schemas.Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
+    ip = request.client.host if request.client else "unknown"
+    key = ip + "|" + form_data.username.lower()
+    login_limiter.check(key)
+
     user = db.query(models.User).filter(models.User.username == form_data.username).first()
+    if user is None:
+        burn_password_check(form_data.password)
     if not user or not verify_password(form_data.password, user.hashed_password):
+        login_limiter.record_failure(key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Usuario ou senha invalidos",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Conta desativada")
+
+    login_limiter.reset(key)
     token = create_access_token(data={"sub": user.username})
     return {"access_token": token, "token_type": "bearer"}
 
@@ -45,3 +74,16 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 @router.get("/me", response_model=schemas.UserOut)
 def me(current_user: models.User = Depends(get_current_user)):
     return current_user
+
+
+@router.post("/change-password", status_code=204)
+def change_password(
+    payload: schemas.PasswordChange,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Senha atual incorreta")
+    current_user.hashed_password = hash_password(payload.new_password)
+    db.commit()
+    return Response(status_code=204)

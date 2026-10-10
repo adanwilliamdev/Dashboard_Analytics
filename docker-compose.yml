@@ -1,26 +1,65 @@
+# Producao/estavel:   docker compose -f docker-compose.yml up -d --build
+# Desenvolvimento:    docker compose up --build   (aplica o docker-compose.override.yml: hot-reload)
 services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dashboard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no arquivo .env}
+      POSTGRES_DB: ${POSTGRES_DB:-dashboard}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   api:
     build: .
-    container_name: dashboard_api
+    restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=sqlite:///./dashboard.db
-      - SECRET_KEY=dev_secret_key_troque_em_producao_12345
-      - API_BASE_URL=http://api:8000
-    volumes:
-      - ./:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      APP_ENV: ${APP_ENV:-production}
+      SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY no arquivo .env}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-dashboard}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-dashboard}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8501}
+      REDIS_URL: redis://redis:6379/0
+      ADMIN_USERNAMES: ${ADMIN_USERNAMES:-}
+      AUTO_CREATE_TABLES: "false"  # o esquema vem do Alembic (executado no start da API)
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   dashboard:
     build: .
-    container_name: dashboard_ui
+    restart: unless-stopped
     ports:
       - "8501:8501"
     environment:
-      - API_BASE_URL=http://api:8000
-    volumes:
-      - ./:/app
+      API_BASE_URL: http://api:8000
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     command: streamlit run dashboard/app.py --server.port=8501 --server.address=0.0.0.0
+
+volumes:
+  pgdata:
