@@ -1,4 +1,5 @@
 """Dashboard interativo (Streamlit) consumindo a API."""
+import html
 import os
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -6,13 +7,16 @@ from urllib.parse import quote
 
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.io as pio
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
 
 API_URL = os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
 TIMEOUT = 20
-GREEN, RED, BLUE = "#16A34A", "#DC2626", "#4F46E5"
+# Paleta no estilo do portfolio: preto + verde-menta. Ambar so para linhas de tendencia.
+GREEN, RED, AMBER = "#34D399", "#F87171", "#FBBF24"
+BG, SURFACE, BORDER, MUTED, TEXT = "#07090C", "#0D1117", "#1C222B", "#8B96A5", "#E8EEF5"
 PAGE_SIZE = 25
 
 st.set_page_config(
@@ -36,6 +40,131 @@ components.html(
     </script>""",
     height=0,
 )
+
+# ---------------------------------------------------------------- Tema
+pio.templates["dark_green"] = go.layout.Template(
+    layout=dict(
+        paper_bgcolor=SURFACE, plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color=TEXT, family="JetBrains Mono, monospace", size=12),
+        colorway=[GREEN, AMBER, RED, TEXT, MUTED],
+        xaxis=dict(gridcolor="#161D27", zerolinecolor=BORDER, linecolor=BORDER, automargin=True, title=dict(standoff=14)),
+        yaxis=dict(gridcolor="#161D27", zerolinecolor=BORDER, linecolor=BORDER, automargin=True, title=dict(standoff=14)),
+        legend=dict(font=dict(color=MUTED)),
+        hoverlabel=dict(bgcolor=SURFACE, bordercolor=GREEN, font=dict(color=TEXT)),
+    )
+)
+pio.templates.default = "dark_green"
+
+THEME_CSS = f"""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+html, body, .stApp, [class*="css"] {{ font-family: 'Geist', 'Inter', system-ui, sans-serif; }}
+code, pre, kbd, .mono, div[data-testid="stCaptionContainer"], label p {{ font-family: 'JetBrains Mono', ui-monospace, monospace; }}
+
+/* fundo: grade sutil + brilho verde no topo */
+.stApp {{
+    background-color: {BG};
+    background-image:
+        radial-gradient(ellipse 70% 38% at 50% 0%, rgba(52,211,153,0.14), transparent 70%),
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 100% 100%, 64px 64px, 64px 64px;
+    background-attachment: fixed;
+}}
+header[data-testid="stHeader"] {{ background: transparent; }}
+.block-container {{ padding-top: 2.5rem; padding-bottom: 4rem; max-width: 1320px; }}
+
+/* titulos */
+h1 {{ font-weight: 700 !important; letter-spacing: -0.035em !important; line-height: 1.05 !important;
+     background: linear-gradient(180deg, #FFFFFF 30%, #A7F3D0 100%); -webkit-background-clip: text;
+     background-clip: text; -webkit-text-fill-color: transparent; }}
+h2, h3 {{ font-weight: 600 !important; letter-spacing: -0.02em !important; margin-top: .6rem; padding-bottom: .4rem !important; }}
+.stApp h3::before {{ content: "$ "; font-family: 'JetBrains Mono', monospace; color: {GREEN}; font-weight: 500; }}
+div[data-testid="stCaptionContainer"] {{ color: {MUTED}; font-size: 0.8rem; }}
+
+/* selo "disponivel" com ponto de status */
+.ya-badge {{ display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; margin-bottom: 14px;
+            border: 1px solid {BORDER}; border-radius: 999px; background: rgba(13,17,23,0.7);
+            font: 500 12px 'JetBrains Mono', monospace; color: {MUTED}; }}
+.ya-badge::before {{ content: ""; width: 8px; height: 8px; border-radius: 50%; background: {GREEN};
+                    box-shadow: 0 0 0 3px rgba(52,211,153,0.2), 0 0 10px {GREEN}; }}
+
+/* sidebar */
+section[data-testid="stSidebar"] {{ background: rgba(10,13,18,0.92); border-right: 1px solid {BORDER}; }}
+section[data-testid="stSidebar"] h1 {{ font-size: 1.15rem; font-family: 'JetBrains Mono', monospace;
+    -webkit-text-fill-color: {TEXT}; background: none; letter-spacing: -0.01em !important; }}
+section[data-testid="stSidebar"] h3::before {{ content: "> "; }}
+
+/* espacamento entre colunas/blocos */
+div[data-testid="stHorizontalBlock"] {{ gap: 1.1rem; align-items: stretch; }}
+div[data-testid="stVerticalBlock"] {{ gap: 1.1rem; }}
+
+/* cards de metricas: mesma altura, conteudo alinhado ao topo, mais respiro */
+div[data-testid="stMetric"] {{ background: linear-gradient(180deg, rgba(17,22,30,0.9), rgba(10,13,18,0.9));
+    border: 1px solid {BORDER}; border-radius: 16px; padding: 22px 24px; min-height: 148px; box-sizing: border-box;
+    display: flex; flex-direction: column; justify-content: flex-start; gap: 6px;
+    transition: border-color .2s, box-shadow .2s; }}
+div[data-testid="stMetric"]:hover {{ border-color: rgba(52,211,153,0.45); box-shadow: 0 0 24px rgba(52,211,153,0.08); }}
+div[data-testid="stMetricLabel"] p {{ color: {MUTED}; font: 500 11px 'JetBrains Mono', monospace;
+    text-transform: uppercase; letter-spacing: 0.08em; white-space: normal; line-height: 1.4; }}
+div[data-testid="stMetricValue"] {{ font-weight: 600; letter-spacing: -0.02em; font-size: 1.65rem; line-height: 1.2; }}
+div[data-testid="stMetricValue"] > div {{ overflow: visible; text-overflow: clip; }}
+div[data-testid="stMetricDelta"] {{ font-size: 0.85rem; }}
+
+/* botoes */
+button[kind="primary"], button[kind="primaryFormSubmit"] {{
+    background: {GREEN}; border: 1px solid {GREEN}; color: #04130D; font-weight: 600; border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(52,211,153,0.28); transition: box-shadow .2s, transform .2s; }}
+button[kind="primary"] p, button[kind="primaryFormSubmit"] p {{ color: #04130D !important; }}
+button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover {{
+    background: #5EEAB4; border-color: #5EEAB4; box-shadow: 0 10px 30px rgba(52,211,153,0.42); transform: translateY(-1px); }}
+button[kind="primary"]:disabled {{ background: #1C222B; border-color: #1C222B; box-shadow: none; }}
+button[kind="primary"]:disabled p {{ color: {MUTED} !important; }}
+button[kind="secondary"], button[kind="secondaryFormSubmit"], div[data-testid="stDownloadButton"] button {{
+    background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 12px; font-weight: 500; }}
+button[kind="secondary"]:hover, button[kind="secondaryFormSubmit"]:hover, div[data-testid="stDownloadButton"] button:hover {{
+    border-color: rgba(52,211,153,0.6); color: {GREEN}; }}
+button[kind="secondary"]:hover p, button[kind="secondaryFormSubmit"]:hover p {{ color: {GREEN}; }}
+
+/* abas estilo menu do portfolio */
+div[data-baseweb="tab-list"] {{ gap: 6px; border-bottom: 1px solid {BORDER}; }}
+button[data-baseweb="tab"] p {{ font: 500 12px 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; color: {MUTED}; }}
+button[data-baseweb="tab"][aria-selected="true"] p {{ color: {GREEN}; }}
+div[data-baseweb="tab-highlight"] {{ background-color: {GREEN}; box-shadow: 0 0 10px {GREEN}; }}
+div[data-baseweb="tab-border"] {{ background-color: transparent; }}
+
+/* campos, forms, tabelas, graficos */
+div[data-baseweb="input"], div[data-baseweb="select"] > div, div[data-baseweb="base-input"], textarea {{
+    background: {SURFACE} !important; border-radius: 12px !important; border-color: {BORDER} !important; }}
+div[data-baseweb="input"]:focus-within, div[data-baseweb="select"] > div:focus-within {{ border-color: {GREEN} !important; }}
+div[data-testid="stForm"] {{ background: rgba(13,17,23,0.7); border: 1px solid {BORDER}; border-radius: 16px; padding: 1.4rem 1.4rem 1.2rem; }}
+div[data-testid="stDataFrame"], div[data-testid="stDataEditor"] {{ border: 1px solid {BORDER}; border-radius: 16px; overflow: hidden; }}
+div[data-testid="stPlotlyChart"] {{ border: 1px solid {BORDER}; border-radius: 16px; overflow: hidden; padding: 0; background: {SURFACE}; }}
+div[data-testid="stProgress"] > div > div > div {{ background-color: {GREEN}; }}
+hr {{ border-color: {BORDER}; }}
+
+/* avisos neutros */
+.ya-info {{ background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px;
+           padding: 12px 16px; color: {TEXT}; margin-bottom: 1rem; font-size: 0.92rem; }}
+</style>
+"""
+st.markdown(THEME_CSS, unsafe_allow_html=True)
+
+
+def badge(text: str):
+    st.markdown('<span class="ya-badge">' + html.escape(text) + "</span>", unsafe_allow_html=True)
+
+
+def info(message: str):
+    """Aviso neutro na cor da marca (no lugar do st.info azul)."""
+    st.markdown('<div class="ya-info">' + html.escape(str(message)) + "</div>", unsafe_allow_html=True)
+
+
+def show_chart(fig):
+    """theme=None mantem o template amarelo/preto em vez do tema padrao do Streamlit."""
+    st.plotly_chart(fig, use_container_width=True, theme=None)
+
 
 st.session_state.setdefault("token", None)
 st.session_state.setdefault("username", None)
@@ -111,12 +240,13 @@ def refresh():
 
 
 def show_insight(ins: dict):
-    {"warning": st.warning, "success": st.success}.get(ins["level"], st.info)(ins["message"])
+    {"warning": st.warning, "success": st.success}.get(ins["level"], info)(ins["message"])
 
 
 # ----------------------------------------------------------------- Auth
 def render_auth():
-    st.title("📈 Dashboard Analytics")
+    badge("acesso seguro")
+    st.title("Dashboard Analytics")
     st.caption("Faça login ou crie sua conta para acessar o painel.")
     tab_login, tab_register = st.tabs(["Entrar", "Criar conta"])
 
@@ -156,7 +286,7 @@ def render_auth():
 
 # -------------------------------------------------------------- Sidebar
 def render_sidebar() -> int:
-    st.sidebar.title("📈 Dashboard")
+    st.sidebar.title("● dashboard.analytics")
     st.sidebar.write("Usuário: **" + str(st.session_state.username) + "**")
     c1, c2 = st.sidebar.columns(2)
     if c1.button("🔄 Atualizar", use_container_width=True):
@@ -220,7 +350,7 @@ def tab_overview(data: dict, days: int):
     s = data["summary"]
     ch = s["comparison"]["change_pct"]
 
-    c1, c2, c3, c4, c5 = st.columns(5)
+    c1, c2, c3, c4, c5 = st.columns(5, gap="medium")
     c1.metric("Receitas", money(s["total_income"]), fmt_delta(ch["income"]))
     c2.metric("Despesas", money(s["total_expense"]), fmt_delta(ch["expense"]), delta_color="inverse")
     c3.metric("Saldo", money(s["balance"]), fmt_delta(ch["balance"]))
@@ -237,38 +367,38 @@ def tab_overview(data: dict, days: int):
     with left:
         st.subheader("Evolução diária")
         if ts.empty:
-            st.info("Sem dados no período.")
+            info("Sem dados no período.")
         else:
             fig = go.Figure()
             fig.add_bar(x=ts["day"], y=ts["income"], name="Receita", marker_color=GREEN, opacity=0.8)
             fig.add_bar(x=ts["day"], y=-ts["expense"], name="Despesa", marker_color=RED, opacity=0.8)
             fig.add_scatter(
                 x=ts["day"], y=ts["cumulative_balance"], name="Saldo acumulado",
-                mode="lines", line=dict(color=BLUE, width=3), yaxis="y2",
+                mode="lines", line=dict(color=AMBER, width=3), yaxis="y2",
             )
             fig.update_layout(
-                height=400, barmode="relative", margin=dict(l=10, r=10, t=10, b=10),
-                legend=dict(orientation="h", y=1.1),
+                height=400, barmode="relative", margin=dict(l=24, r=24, t=56, b=24),
+                legend=dict(orientation="h", y=1.02, yanchor="bottom", x=0),
                 yaxis=dict(title="Fluxo diário (R$)"),
                 yaxis2=dict(title="Saldo acumulado (R$)", overlaying="y", side="right", showgrid=False),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            show_chart(fig)
 
     with right:
         st.subheader("Despesas por categoria")
         cats = [c for c in data["by_category"] if c["type"] == "expense"]
         if not cats:
-            st.info("Sem despesas no período.")
+            info("Sem despesas no período.")
         else:
             dfc = pd.DataFrame(cats).sort_values("amount")
             fig = go.Figure(
                 go.Bar(
-                    x=dfc["amount"], y=dfc["category"], orientation="h", marker_color=BLUE,
-                    text=[f"{p:.0f}%" for p in dfc["share_pct"]], textposition="outside",
+                    x=dfc["amount"], y=dfc["category"], orientation="h", marker_color=GREEN,
+                    text=[f"{p:.0f}%" for p in dfc["share_pct"]], textposition="outside", cliponaxis=False,
                 )
             )
-            fig.update_layout(height=400, margin=dict(l=10, r=40, t=10, b=10), xaxis_title="R$")
-            st.plotly_chart(fig, use_container_width=True)
+            fig.update_layout(height=400, margin=dict(l=24, r=72, t=48, b=24), xaxis_title="R$")
+            show_chart(fig)
 
     st.subheader("Maiores despesas")
     if data["top_expenses"]:
@@ -280,7 +410,7 @@ def tab_overview(data: dict, days: int):
             column_config={"Valor": st.column_config.NumberColumn(format="R$ %.2f")},
         )
     else:
-        st.info("Nenhuma despesa no período.")
+        info("Nenhuma despesa no período.")
 
 
 # ----------------------------------------------------------- Tab: Análises
@@ -288,48 +418,48 @@ def tab_analytics(data: dict):
     st.subheader("Comparativo mensal")
     monthly = pd.DataFrame(data["monthly"])
     if monthly.empty:
-        st.info("Sem histórico suficiente.")
+        info("Sem histórico suficiente.")
     else:
         fig = go.Figure()
         fig.add_bar(x=monthly["month"], y=monthly["income"], name="Receita", marker_color=GREEN)
         fig.add_bar(x=monthly["month"], y=monthly["expense"], name="Despesa", marker_color=RED)
         fig.add_scatter(
             x=monthly["month"], y=monthly["savings_rate"], name="Poupança (%)",
-            mode="lines+markers", yaxis="y2", line=dict(color=BLUE, width=3),
+            mode="lines+markers", yaxis="y2", line=dict(color=AMBER, width=3),
         )
         fig.update_layout(
-            height=380, barmode="group", margin=dict(l=10, r=10, t=10, b=10),
-            legend=dict(orientation="h", y=1.1),
+            height=380, barmode="group", margin=dict(l=24, r=24, t=56, b=24),
+            legend=dict(orientation="h", y=1.02, yanchor="bottom", x=0),
             yaxis2=dict(title="Poupança (%)", overlaying="y", side="right", showgrid=False),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        show_chart(fig)
 
     col_a, col_b = st.columns(2)
     with col_a:
         st.subheader("Gasto por dia da semana")
         wd = pd.DataFrame(data["weekday"])
-        fig = go.Figure(go.Bar(x=wd["weekday"], y=wd["total"], marker_color=BLUE))
-        fig.update_layout(height=320, margin=dict(l=10, r=10, t=10, b=10), yaxis_title="R$")
-        st.plotly_chart(fig, use_container_width=True)
+        fig = go.Figure(go.Bar(x=wd["weekday"], y=wd["total"], marker_color=GREEN))
+        fig.update_layout(height=320, margin=dict(l=24, r=24, t=56, b=24), yaxis_title="R$")
+        show_chart(fig)
 
     with col_b:
         st.subheader("Previsão de despesas (30 dias)")
         fc = data["forecast"]
         if not fc.get("available"):
-            st.info(fc.get("reason", "Previsão indisponível."))
+            info(fc.get("reason", "Previsão indisponível."))
         else:
             daily = pd.DataFrame(fc["daily"])
             fig = go.Figure()
             fig.add_scatter(x=daily["day"], y=daily["upper"], mode="lines", line=dict(width=0), showlegend=False)
             fig.add_scatter(
                 x=daily["day"], y=daily["lower"], mode="lines", line=dict(width=0),
-                fill="tonexty", fillcolor="rgba(79,70,229,0.15)", name="Faixa ~80%",
+                fill="tonexty", fillcolor="rgba(251,191,36,0.15)", name="Faixa ~80%",
             )
             fig.add_scatter(x=daily["day"], y=daily["expense"], mode="lines", name="Projeção",
-                            line=dict(color=BLUE, width=3))
-            fig.update_layout(height=320, margin=dict(l=10, r=10, t=10, b=10), yaxis_title="R$/dia",
-                              legend=dict(orientation="h", y=1.15))
-            st.plotly_chart(fig, use_container_width=True)
+                            line=dict(color=AMBER, width=3))
+            fig.update_layout(height=320, margin=dict(l=24, r=24, t=56, b=24), yaxis_title="R$/dia",
+                              legend=dict(orientation="h", y=1.02, yanchor="bottom", x=0))
+            show_chart(fig)
 
     if data["forecast"].get("available"):
         fc = data["forecast"]
@@ -377,7 +507,7 @@ def tab_budgets(data: dict):
     st.subheader("Orçamento do mês")
     budgets = data["budgets"]
     if not budgets:
-        st.info("Defina limites mensais por categoria para acompanhar o consumo.")
+        info("Defina limites mensais por categoria para acompanhar o consumo.")
     for b in budgets:
         icon = {"ok": "🟢", "warning": "🟡", "exceeded": "🔴"}[b["status"]]
         left, right = st.columns([4, 1])
@@ -491,7 +621,7 @@ def tab_transactions():
                 st.warning(f"{failed} exclusão(ões) falharam.")
             refresh()
     else:
-        st.info("Nenhuma transação encontrada com esses filtros.")
+        info("Nenhuma transação encontrada com esses filtros.")
 
     p1, p2, _ = st.columns([1, 1, 6])
     if p1.button("⬅️ Anterior", disabled=page == 0):
@@ -544,7 +674,7 @@ def tab_transactions():
 def tab_insights(data: dict):
     st.subheader("Insights automáticos")
     if not data["insights"]:
-        st.info("Cadastre mais transações para gerar insights.")
+        info("Cadastre mais transações para gerar insights.")
     for ins in data["insights"]:
         show_insight(ins)
 
@@ -552,8 +682,8 @@ def tab_insights(data: dict):
 # ----------------------------------------------------------------- Main
 def render_dashboard():
     days = render_sidebar()
+    badge(f"ao vivo · últimos {days} dias · {datetime.now().strftime('%H:%M:%S')}")
     st.title("Painel de Análise")
-    st.caption(f"Últimos {days} dias · atualizado às {datetime.now().strftime('%H:%M:%S')}")
 
     data = fetch_overview(st.session_state.token, days)
 

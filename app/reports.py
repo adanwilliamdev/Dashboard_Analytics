@@ -17,8 +17,8 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from app import analytics_core as core
 
 BRL = '"R$" #,##0.00'
-HEADER_FILL = PatternFill("solid", fgColor="4F46E5")
-HEADER_FONT = Font(bold=True, color="FFFFFF")
+HEADER_FILL = PatternFill("solid", fgColor="07090C")
+HEADER_FONT = Font(bold=True, color="34D399")
 _EMOJI = re.compile("[\U00010000-\U0010ffff\u2600-\u27bf\ufe0f]")
 
 
@@ -128,12 +128,12 @@ def _table(data: List[List[Any]], col_widths=None, align_right_from: int = 1) ->
     t.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#4F46E5")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#07090C")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#34D399")),
                 ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                 ("FONTSIZE", (0, 0), (-1, -1), 9),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F1F5F9")]),
-                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#CBD5E1")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F5F5F4")]),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#D6D3D1")),
                 ("ALIGN", (align_right_from, 1), (-1, -1), "RIGHT"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ]
@@ -145,8 +145,8 @@ def _table(data: List[List[Any]], col_widths=None, align_right_from: int = 1) ->
 def build_report_pdf(overview: Dict[str, Any], username: str = "") -> bytes:
     """Relatorio executivo (A4) a partir do payload de /analytics/overview."""
     styles = getSampleStyleSheet()
-    h2 = ParagraphStyle("h2", parent=styles["Heading2"], textColor=colors.HexColor("#1E293B"), spaceBefore=12)
-    small = ParagraphStyle("small", parent=styles["BodyText"], fontSize=8, textColor=colors.HexColor("#64748B"))
+    h2 = ParagraphStyle("h2", parent=styles["Heading2"], textColor=colors.HexColor("#07090C"), spaceBefore=12)
+    small = ParagraphStyle("small", parent=styles["BodyText"], fontSize=8, textColor=colors.HexColor("#57534E"))
 
     s = overview["summary"]
     ch = s["comparison"]["change_pct"]
