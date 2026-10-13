@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from app.utils import utcnow
+from app.utils import local_now
 
 COLUMNS = ["id", "description", "amount", "category", "type", "date"]
 WEEKDAYS_PT = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"]
@@ -220,7 +220,7 @@ def forecast(
     if exp.empty:
         return {"available": False, "reason": "Sem despesas registradas."}
 
-    today_ts = pd.Timestamp(today if today is not None else utcnow()).normalize()
+    today_ts = pd.Timestamp(today if today is not None else local_now()).normalize()
     first = exp["date"].min().normalize()
     start = max(first, today_ts - pd.Timedelta(days=lookback - 1))
     idx = pd.date_range(start, today_ts, freq="D")
@@ -395,7 +395,7 @@ def budget_status(
 ) -> List[Dict[str, Any]]:
     """Gasto do mes corrente versus limite de cada categoria."""
     df = normalize(df)
-    now = pd.Timestamp(today if today is not None else utcnow())
+    now = pd.Timestamp(today if today is not None else local_now())
     month_df = df[
         (df["type"] == "expense")
         & (df["date"].dt.year == now.year)

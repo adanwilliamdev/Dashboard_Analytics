@@ -1,9 +1,13 @@
 """Dashboard interativo (Streamlit) consumindo a API."""
+import base64
 import html
+import json
 import os
+import time
 from datetime import date, datetime, timedelta
 from typing import Optional
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -14,6 +18,11 @@ import streamlit.components.v1 as components
 
 API_URL = os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
 TIMEOUT = 20
+# Fuso do "dia do usuario" (o mesmo da API): define "hoje" e a hora exibida, em vez do fuso do servidor
+APP_TZ = ZoneInfo(os.getenv("APP_TIMEZONE", "America/Sao_Paulo"))
+# Sessao persistida em cookie para sobreviver ao F5 (REMEMBER_SESSION=false desliga)
+REMEMBER_SESSION = os.getenv("REMEMBER_SESSION", "true").strip().lower() not in ("0", "false", "no", "off")
+SESSION_COOKIE = "ya_session"
 # Paleta no estilo do portfolio: preto + verde-menta. Ambar so para linhas de tendencia.
 GREEN, RED, AMBER = "#34D399", "#F87171", "#FBBF24"
 BG, SURFACE, BORDER, MUTED, TEXT = "#07090C", "#0D1117", "#1C222B", "#8B96A5", "#E8EEF5"
@@ -170,6 +179,10 @@ st.session_state.setdefault("token", None)
 st.session_state.setdefault("username", None)
 
 
+def today_local() -> date:
+    return datetime.now(APP_TZ).date()
+
+
 # ------------------------------------------------------------------ API
 class ApiError(Exception):
     def __init__(self, status: int, detail: str):
@@ -181,6 +194,8 @@ class ApiError(Exception):
 def _logout():
     st.session_state.token = None
     st.session_state.username = None
+    st.session_state._cookie_checked = True  # o cookie so e apagado no proximo run: nao restaurar a sessao
+    st.session_state._cookie_op = ("clear", None)
     st.cache_data.clear()
 
 
@@ -210,6 +225,59 @@ def api(method: str, path: str, **kwargs) -> requests.Response:
             _logout()
             st.rerun()
         raise
+
+
+# ------------------------------------------------------- Sessao (cookie)
+# O Streamlit nao consegue gravar cookies pelo servidor; o cookie e gravado por um snippet JS no
+# documento pai (mesma origem) e lido de volta em st.context.cookies no carregamento seguinte.
+# Mitigacoes: SameSite=Strict, Secure em https, validade = a do JWT e revogacao no servidor
+# (trocar a senha invalida o token). O snippet roda no run SEGUINTE ao login/logout, porque o
+# st.rerun() imediato impediria o componente de renderizar.
+def _token_ttl_seconds(token: str) -> int:
+    try:
+        payload = token.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        return max(int(json.loads(base64.urlsafe_b64decode(payload))["exp"] - time.time()), 0)
+    except Exception:
+        return 3600
+
+
+def sync_session_cookie():
+    op = st.session_state.pop("_cookie_op", None)
+    if not op:
+        return
+    kind, token = op
+    if kind == "set" and REMEMBER_SESSION and token:
+        max_age, value = _token_ttl_seconds(token), token
+    else:
+        max_age, value = 0, ""
+    js = (
+        "const d = window.parent.document;"
+        "const secure = window.parent.location.protocol === 'https:' ? '; Secure' : '';"
+        f"d.cookie = {json.dumps(SESSION_COOKIE)} + '=' + {json.dumps(value)} + "
+        f"'; path=/; max-age={max_age}; SameSite=Strict' + secure;"
+    ).replace("</", "<\\/")
+    components.html(f"<script>{js}</script>", height=0)
+
+
+def restore_session():
+    """Primeiro run de uma sessao nova (ex.: apos F5): recupera o login a partir do cookie."""
+    if st.session_state.token is not None or st.session_state.get("_cookie_checked"):
+        return
+    st.session_state._cookie_checked = True
+    if not REMEMBER_SESSION:
+        return
+    token = st.context.cookies.get(SESSION_COOKIE)
+    if not token:
+        return
+    try:
+        me = _request("GET", "/auth/me", token).json()
+    except ApiError as exc:
+        if exc.status == 401:  # expirado/revogado: limpa o cookie. API fora do ar (status 0): mantem
+            st.session_state._cookie_op = ("clear", None)
+        return
+    st.session_state.token = token
+    st.session_state.username = me.get("username")
 
 
 @st.cache_data(ttl=20, show_spinner=False)
@@ -258,7 +326,8 @@ def render_auth():
                 try:
                     resp = _request("POST", "/auth/login", data={"username": username, "password": password})
                     st.session_state.token = resp.json()["access_token"]
-                    st.session_state.username = username
+                    st.session_state.username = username.strip().lower()
+                    st.session_state._cookie_op = ("set", st.session_state.token)
                     st.rerun()
                 except ApiError as exc:
                     st.error(exc.detail)
@@ -324,7 +393,7 @@ def render_sidebar() -> int:
         )
         cat_choice = st.selectbox("Categoria", categories + [new_cat_label])
         new_cat = st.text_input("Nova categoria (se escolheu “nova” acima)")
-        tx_date = st.date_input("Data", value=date.today(), format="DD/MM/YYYY")
+        tx_date = st.date_input("Data", value=today_local(), format="DD/MM/YYYY")
         if st.form_submit_button("Adicionar", use_container_width=True, type="primary"):
             category = new_cat.strip() if cat_choice == new_cat_label else cat_choice
             if not desc.strip() or not category:
@@ -558,7 +627,7 @@ def tab_transactions():
     )
     f_cat = f3.selectbox("Categoria", [""] + categories, key="f_cat", format_func=lambda c: c or "Todas")
     period = f4.date_input(
-        "Período", value=(date.today() - timedelta(days=90), date.today()), format="DD/MM/YYYY", key="f_period"
+        "Período", value=(today_local() - timedelta(days=90), today_local()), format="DD/MM/YYYY", key="f_period"
     )
     s1, s2 = st.columns(2)
     sort_labels = {"date": "Data", "amount": "Valor", "category": "Categoria", "description": "Descrição"}
@@ -682,7 +751,7 @@ def tab_insights(data: dict):
 # ----------------------------------------------------------------- Main
 def render_dashboard():
     days = render_sidebar()
-    badge(f"ao vivo · últimos {days} dias · {datetime.now().strftime('%H:%M:%S')}")
+    badge(f"ao vivo · últimos {days} dias · {datetime.now(APP_TZ).strftime('%H:%M:%S')}")
     st.title("Painel de Análise")
 
     data = fetch_overview(st.session_state.token, days)
@@ -700,6 +769,8 @@ def render_dashboard():
         tab_insights(data)
 
 
+restore_session()
+sync_session_cookie()
 if st.session_state.token is None:
     render_auth()
 else:

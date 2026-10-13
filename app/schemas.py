@@ -1,8 +1,13 @@
 """Schemas Pydantic (validacao de entrada/saida)."""
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from app.utils import to_local_naive
+
+# bcrypt so considera os 72 primeiros BYTES da senha; acima disso o restante seria ignorado em silencio
+BCRYPT_MAX_BYTES = 72
 
 TxType = Literal["income", "expense"]
 
@@ -14,10 +19,11 @@ def _norm_category(value: Optional[str]) -> Optional[str]:
     return value or "geral"
 
 
-def _naive_utc(value: Optional[datetime]) -> Optional[datetime]:
-    """Converte datetimes com fuso para UTC naive (como o banco armazena)."""
-    if value is not None and value.tzinfo is not None:
-        return value.astimezone(timezone.utc).replace(tzinfo=None)
+def _check_password_bytes(value: str) -> str:
+    if len(value.encode("utf-8")) > BCRYPT_MAX_BYTES:
+        raise ValueError(
+            f"senha excede {BCRYPT_MAX_BYTES} bytes (caracteres acentuados ocupam mais de 1 byte)"
+        )
     return value
 
 
@@ -30,7 +36,18 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     # a regra de caracteres vale so para novos cadastros (nao quebra usuarios antigos)
     username: str = Field(..., min_length=3, max_length=50, pattern=r"^[A-Za-z0-9_.-]+$")
-    password: str = Field(..., min_length=8, max_length=100)
+    password: str = Field(..., min_length=8, max_length=BCRYPT_MAX_BYTES)
+
+    @field_validator("username")
+    @classmethod
+    def _lowercase_username(cls, v: str) -> str:
+        # login e unicidade ignoram maiusculas ("Admin" e "admin" sao a mesma conta)
+        return v.lower()
+
+    @field_validator("password")
+    @classmethod
+    def _password_bytes(cls, v: str) -> str:
+        return _check_password_bytes(v)
 
 
 Role = Literal["user", "viewer", "admin"]
@@ -58,7 +75,12 @@ class ActiveIn(BaseModel):
 
 class PasswordChange(BaseModel):
     current_password: str = Field(..., min_length=1, max_length=100)
-    new_password: str = Field(..., min_length=8, max_length=100)
+    new_password: str = Field(..., min_length=8, max_length=BCRYPT_MAX_BYTES)
+
+    @field_validator("new_password")
+    @classmethod
+    def _password_bytes(cls, v: str) -> str:
+        return _check_password_bytes(v)
 
 
 class Token(BaseModel):
@@ -94,7 +116,7 @@ class TransactionBase(BaseModel):
     @field_validator("date")
     @classmethod
     def _date(cls, v: Optional[datetime]) -> Optional[datetime]:
-        return _naive_utc(v)
+        return to_local_naive(v)
 
 
 class TransactionCreate(TransactionBase):
@@ -116,7 +138,7 @@ class TransactionUpdate(BaseModel):
     @field_validator("date")
     @classmethod
     def _date(cls, v: Optional[datetime]) -> Optional[datetime]:
-        return _naive_utc(v)
+        return to_local_naive(v)
 
 
 class TransactionOut(TransactionBase):

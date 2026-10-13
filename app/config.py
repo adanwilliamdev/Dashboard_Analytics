@@ -1,5 +1,6 @@
 """Configuracoes centralizadas da aplicacao."""
 from typing import List
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -26,8 +27,15 @@ class Settings(BaseSettings):
     CACHE_TTL_SECONDS: int = 30
     REDIS_URL: str = ""
 
-    # Usuarios que nascem admin ao se cadastrar (separados por virgula)
+    # DESCONTINUADO e ignorado: promover por cadastro permitia que qualquer pessoa tomasse o
+    # username reservado. Crie o primeiro admin com `python -m app.cli create-admin`.
     ADMIN_USERNAMES: str = ""
+
+    # Fuso do "dia do usuario": define hoje, janelas de dias, mes do orcamento e datas padrao
+    APP_TIMEZONE: str = "America/Sao_Paulo"
+
+    # Nivel dos logs da aplicacao (logger "dashboard.*")
+    LOG_LEVEL: str = "INFO"
 
     # Em producao deixe false e use `alembic upgrade head`
     AUTO_CREATE_TABLES: bool = True
@@ -41,12 +49,16 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
 
     @property
-    def admin_usernames(self) -> List[str]:
-        return [u.strip().lower() for u in self.ADMIN_USERNAMES.split(",") if u.strip()]
-
-    @property
     def is_production(self) -> bool:
         return self.APP_ENV.lower() == "production"
+
+    @model_validator(mode="after")
+    def _validate_timezone(self) -> "Settings":
+        try:
+            ZoneInfo(self.APP_TIMEZONE)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError(f"APP_TIMEZONE invalido: {self.APP_TIMEZONE!r} (ex.: America/Sao_Paulo)") from exc
+        return self
 
     @model_validator(mode="after")
     def _validate_production_secret(self) -> "Settings":

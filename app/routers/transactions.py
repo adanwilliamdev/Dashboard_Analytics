@@ -14,7 +14,7 @@ from app import csv_io, models, reports, schemas
 from app.auth import get_current_user, require_writer
 from app.cache import get_cache, user_ns
 from app.database import get_db
-from app.utils import utcnow
+from app.utils import local_now, to_local_naive
 
 router = APIRouter(prefix="/transactions", tags=["Transacoes"])
 
@@ -41,8 +41,9 @@ class TransactionFilters:
     ):
         self.category = category.strip().lower() if category else None
         self.type = type
-        self.start_date = start_date
-        self.end_date = end_date
+        # datas com fuso (ex.: ...-03:00 ou Z) viram horario de parede de APP_TIMEZONE, como o que e gravado
+        self.start_date = to_local_naive(start_date)
+        self.end_date = to_local_naive(end_date)
         self.q = q.strip().lower() if q else None
         self.min_amount = min_amount
         self.max_amount = max_amount
@@ -94,7 +95,7 @@ def create_transaction(
         amount=payload.amount,
         category=payload.category,
         type=payload.type,
-        date=payload.date or utcnow(),
+        date=payload.date or local_now(),
         owner_id=current_user.id,
     )
     db.add(tx)
@@ -165,7 +166,7 @@ def export_csv(
             [t.id, t.date.strftime("%Y-%m-%d %H:%M:%S"), _csv_safe(t.description),
              _csv_safe(t.category), t.type, f"{t.amount:.2f}"]
         )
-    filename = "transacoes_" + utcnow().strftime("%Y%m%d") + ".csv"
+    filename = "transacoes_" + local_now().strftime("%Y%m%d") + ".csv"
     return StreamingResponse(
         iter(["\ufeff" + buf.getvalue()]),
         media_type="text/csv; charset=utf-8",
@@ -193,7 +194,7 @@ def export_xlsx(
             for t in items
         ]
     )
-    filename = "transacoes_" + utcnow().strftime("%Y%m%d") + ".xlsx"
+    filename = "transacoes_" + local_now().strftime("%Y%m%d") + ".xlsx"
     return Response(
         content=data,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -230,7 +231,7 @@ def import_csv(
                 amount=item.amount,
                 category=item.category,
                 type=item.type,
-                date=item.date or utcnow(),
+                date=item.date or local_now(),
                 owner_id=current_user.id,
             )
         )

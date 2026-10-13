@@ -9,12 +9,13 @@ from sqlalchemy import (
     Numeric,
     String,
     UniqueConstraint,
+    func,
     true,
 )
 from sqlalchemy.orm import relationship
 
 from app.database import Base
-from app.utils import utcnow
+from app.utils import local_now, utcnow
 
 
 class User(Base):
@@ -26,6 +27,8 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     role = Column(String(20), nullable=False, default="user", server_default="user")  # user | viewer | admin
     is_active = Column(Boolean, nullable=False, default=True, server_default=true())
+    # incrementado ao trocar a senha: invalida todos os JWTs emitidos antes (claim "tv")
+    token_version = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime, default=utcnow)
 
     transactions = relationship("Transaction", back_populates="owner", cascade="all, delete-orphan")
@@ -45,7 +48,7 @@ class Transaction(Base):
     amount = Column(Numeric(12, 2, asdecimal=False), nullable=False)
     category = Column(String(80), nullable=False, default="geral")
     type = Column(String(20), nullable=False, default="expense")
-    date = Column(DateTime, nullable=False, default=utcnow)
+    date = Column(DateTime, nullable=False, default=local_now)  # horario de parede em APP_TIMEZONE
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     owner = relationship("User", back_populates="transactions")
@@ -63,3 +66,7 @@ class Budget(Base):
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
     owner = relationship("User", back_populates="budgets")
+
+
+# Unicidade do username ignorando maiusculas ("Admin" == "admin"). Indice funcional: SQLite e Postgres.
+Index("uq_users_username_lower", func.lower(User.username), unique=True)

@@ -36,7 +36,11 @@ services:
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-dashboard}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-dashboard}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8501}
       REDIS_URL: redis://redis:6379/0
-      ADMIN_USERNAMES: ${ADMIN_USERNAMES:-}
+      APP_TIMEZONE: ${APP_TIMEZONE:-America/Sao_Paulo}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      # IP/CIDR do proxy reverso que repassa X-Forwarded-For (sem isso o rate limit enxerga so o IP do proxy)
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
       AUTO_CREATE_TABLES: "false"  # o esquema vem do Alembic (executado no start da API)
     depends_on:
       db:
@@ -51,6 +55,8 @@ services:
       - "8501:8501"
     environment:
       API_BASE_URL: http://api:8000
+      APP_TIMEZONE: ${APP_TIMEZONE:-America/Sao_Paulo}
+      REMEMBER_SESSION: ${REMEMBER_SESSION:-true}
     depends_on:
       api:
         condition: service_healthy

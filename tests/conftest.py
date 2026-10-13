@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 _TMP = tempfile.mkdtemp(prefix="dash_tests_")
 os.environ["DATABASE_URL"] = "sqlite:///" + _TMP.replace("\\", "/") + "/test.db"
 os.environ["APP_ENV"] = "test"
-os.environ["ADMIN_USERNAMES"] = "chefe"
+os.environ["APP_TIMEZONE"] = "UTC"  # testes deterministas; os casos de fuso usam monkeypatch
 os.environ["SECRET_KEY"] = "test_secret_key_with_more_than_32_characters_ok"
 
 import pytest  # noqa: E402
@@ -45,3 +45,15 @@ def register_and_login(client, username="tester", password="secret123"):
 @pytest.fixture()
 def auth(client):
     return register_and_login(client)
+
+
+def register_admin(client, username="chefe", password="secret123"):
+    """Admin nao nasce por cadastro: registra e promove direto no banco (como o CLI faz)."""
+    from app import models
+    from app.database import SessionLocal
+
+    headers = register_and_login(client, username, password)
+    with SessionLocal() as db:
+        db.query(models.User).filter(models.User.username == username).update({"role": "admin"})
+        db.commit()
+    return headers  # o papel e lido do banco a cada request: o token continua valendo

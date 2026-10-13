@@ -13,13 +13,20 @@ from starlette.middleware.gzip import GZipMiddleware
 from app import __version__, models  # noqa: F401  (registra os modelos no metadata)
 from app.config import settings
 from app.database import Base, engine, get_db
+from app.logging_config import setup_logging
 from app.routers import admin, analytics_router, auth_router, budgets, transactions
 
+setup_logging(settings.LOG_LEVEL)
 logger = logging.getLogger("dashboard.access")
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    if settings.ADMIN_USERNAMES.strip():
+        logging.getLogger("dashboard").warning(
+            "ADMIN_USERNAMES foi descontinuada e e IGNORADA (cadastro publico nunca concede admin). "
+            "Crie o admin com: python -m app.cli create-admin <usuario> <email>"
+        )
     if settings.AUTO_CREATE_TABLES:
         Base.metadata.create_all(bind=engine)
     yield

@@ -1,29 +1,38 @@
-"""Autenticacao: hash de senhas (bcrypt) + JWT (PyJWT)."""
+"""Autenticacao: hash de senhas (bcrypt direto) + JWT (PyJWT)."""
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import bcrypt
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app import models
 from app.config import settings
 from app.database import get_db
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
+BCRYPT_MAX_BYTES = 72
 _dummy_hash: Optional[str] = None
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    """Gera o hash bcrypt. Recusa senhas > 72 bytes em vez de trunca-las em silencio."""
+    raw = password.encode("utf-8")
+    if len(raw) > BCRYPT_MAX_BYTES:
+        raise ValueError(f"senha excede {BCRYPT_MAX_BYTES} bytes")
+    return bcrypt.hashpw(raw, bcrypt.gensalt()).decode("ascii")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    # Trunca em 72 bytes so na VERIFICACAO: contas antigas (criadas quando o limite era 100
+    # caracteres) tem hash dos primeiros 72 bytes e precisam continuar entrando.
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8")[:BCRYPT_MAX_BYTES], hashed.encode("ascii"))
+    except ValueError:  # hash malformado
+        return False
 
 
 def burn_password_check(plain: str) -> None:
@@ -31,7 +40,7 @@ def burn_password_check(plain: str) -> None:
     global _dummy_hash
     if _dummy_hash is None:
         _dummy_hash = hash_password("dummy-password")
-    pwd_context.verify(plain, _dummy_hash)
+    verify_password(plain, _dummy_hash)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -66,6 +75,9 @@ def get_current_user(
 
     user = db.query(models.User).filter(models.User.username == username).first()
     if user is None or not user.is_active:
+        raise credentials_exception
+    # tokens emitidos antes de uma troca de senha deixam de valer (tokens antigos sem "tv" = versao 0)
+    if int(payload.get("tv", 0)) != int(user.token_version or 0):
         raise credentials_exception
     return user
 

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app import analytics_core as core
 from app import models
-from app.utils import utcnow
+from app.utils import local_now
 
 HISTORY_DAYS = 400  # janela maxima carregada em memoria por requisicao
 
@@ -28,7 +28,8 @@ def _budgets(db: Session, owner_id: int) -> Dict[str, float]:
 
 
 def _today() -> pd.Timestamp:
-    return pd.Timestamp(utcnow()).normalize()
+    """Hoje no fuso da aplicacao (APP_TIMEZONE), como Timestamp naive a meia-noite."""
+    return pd.Timestamp(local_now()).normalize()
 
 
 def _split(df: pd.DataFrame, days: int, today: pd.Timestamp):

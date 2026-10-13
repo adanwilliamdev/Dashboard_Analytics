@@ -1,6 +1,7 @@
 """Rotas de autenticacao e cadastro."""
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -12,7 +13,6 @@ from app.auth import (
     hash_password,
     verify_password,
 )
-from app.config import settings
 from app.database import get_db
 from app.security import login_limiter
 
@@ -21,7 +21,8 @@ router = APIRouter(prefix="/auth", tags=["Autenticacao"])
 
 @router.post("/register", response_model=schemas.UserOut, status_code=201)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    if db.query(models.User).filter(models.User.username == user.username).first():
+    # user.username ja vem em minusculas (schema); compara sem diferenciar caixa p/ pegar contas antigas
+    if db.query(models.User).filter(func.lower(models.User.username) == user.username).first():
         raise HTTPException(status_code=400, detail="Username ja cadastrado")
     if db.query(models.User).filter(models.User.email == user.email).first():
         raise HTTPException(status_code=400, detail="E-mail ja cadastrado")
@@ -30,7 +31,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
         username=user.username,
         email=user.email,
         hashed_password=hash_password(user.password),
-        role="admin" if user.username.lower() in settings.admin_usernames else "user",
+        role="user",  # nunca "admin" por cadastro publico: use `python -m app.cli create-admin`
     )
     db.add(new_user)
     try:
@@ -49,10 +50,11 @@ def login(
     db: Session = Depends(get_db),
 ):
     ip = request.client.host if request.client else "unknown"
-    key = ip + "|" + form_data.username.lower()
+    username = form_data.username.strip().lower()
+    key = ip + "|" + username
     login_limiter.check(key)
 
-    user = db.query(models.User).filter(models.User.username == form_data.username).first()
+    user = db.query(models.User).filter(func.lower(models.User.username) == username).first()
     if user is None:
         burn_password_check(form_data.password)
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -67,7 +69,7 @@ def login(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Conta desativada")
 
     login_limiter.reset(key)
-    token = create_access_token(data={"sub": user.username})
+    token = create_access_token(data={"sub": user.username, "tv": user.token_version or 0})
     return {"access_token": token, "token_type": "bearer"}
 
 
@@ -85,5 +87,6 @@ def change_password(
     if not verify_password(payload.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Senha atual incorreta")
     current_user.hashed_password = hash_password(payload.new_password)
+    current_user.token_version = (current_user.token_version or 0) + 1  # derruba tokens ja emitidos
     db.commit()
     return Response(status_code=204)

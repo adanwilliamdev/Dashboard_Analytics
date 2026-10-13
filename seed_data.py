@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from app import models
 from app.auth import hash_password
 from app.database import Base, SessionLocal, engine
-from app.utils import utcnow
+from app.utils import local_now
 
 DEMO_USER = "demo"
 DEMO_PASS = "demo1234"
@@ -105,7 +105,7 @@ def run(months: int = 6, reset: bool = False, seed: int = 42):
             print(f"Ja existem {existing} transacoes. Use --reset para recriar.")
             return
 
-        rows = build_transactions(rng, months, utcnow())
+        rows = build_transactions(rng, months, local_now())
         db.add_all(
             models.Transaction(description=d, category=c, amount=a, type=t, date=dt, owner_id=user.id)
             for d, c, a, t, dt in rows

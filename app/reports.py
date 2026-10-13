@@ -1,7 +1,6 @@
 """Geracao de relatorios (Excel e PDF). Funcoes puras: entram dados, saem bytes."""
 import io
 import re
-from datetime import datetime
 from typing import Any, Dict, List
 
 import pandas as pd
@@ -15,6 +14,7 @@ from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from app import analytics_core as core
+from app.utils import local_now
 
 BRL = '"R$" #,##0.00'
 HEADER_FILL = PatternFill("solid", fgColor="07090C")
@@ -84,7 +84,7 @@ def build_transactions_xlsx(rows: List[Dict[str, Any]]) -> bytes:
     for i, (label, value, fmt) in enumerate(items, start=2):
         _set(ws, i, 1, label)
         _set(ws, i, 2, value if value is not None else "-", fmt)
-    _set(ws, len(items) + 3, 1, "Gerado em " + datetime.now().strftime("%d/%m/%Y %H:%M"))
+    _set(ws, len(items) + 3, 1, "Gerado em " + local_now().strftime("%d/%m/%Y %H:%M"))
     ws.column_dimensions["A"].width = 26
     ws.column_dimensions["B"].width = 18
 
@@ -158,7 +158,7 @@ def build_report_pdf(overview: Dict[str, Any], username: str = "") -> bytes:
     story: List[Any] = [
         Paragraph("Relatório financeiro", styles["Title"]),
         Paragraph(
-            _plain(f"Últimos {days} dias · gerado em {datetime.now():%d/%m/%Y %H:%M}"
+            _plain(f"Últimos {days} dias · gerado em {local_now():%d/%m/%Y %H:%M}"
                    + (f" · {username}" if username else "")),
             small,
         ),

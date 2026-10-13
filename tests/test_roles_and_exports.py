@@ -2,12 +2,12 @@ import io
 
 from openpyxl import load_workbook
 
-from tests.conftest import register_and_login
+from tests.conftest import register_admin, register_and_login
 from tests.test_transactions import add
 
 
-def test_admin_by_env_and_regular_user_blocked(client):
-    admin = register_and_login(client, "chefe")
+def test_admin_and_regular_user_blocked(client):
+    admin = register_admin(client)
     user = register_and_login(client, "comum")
     assert client.get("/auth/me", headers=admin).json()["role"] == "admin"
     assert client.get("/admin/users", headers=user).status_code == 403
@@ -15,7 +15,7 @@ def test_admin_by_env_and_regular_user_blocked(client):
 
 
 def test_admin_lists_users_with_transaction_counts(client):
-    admin = register_and_login(client, "chefe")
+    admin = register_admin(client)
     user = register_and_login(client, "comum")
     add(client, user, "a")
     add(client, user, "b")
@@ -25,7 +25,7 @@ def test_admin_lists_users_with_transaction_counts(client):
 
 
 def test_viewer_is_read_only(client):
-    admin = register_and_login(client, "chefe")
+    admin = register_admin(client)
     viewer = register_and_login(client, "leitor")
     uid = client.get("/auth/me", headers=viewer).json()["id"]
     assert client.put(f"/admin/users/{uid}/role", headers=admin, json={"role": "viewer"}).status_code == 200
@@ -38,7 +38,7 @@ def test_viewer_is_read_only(client):
 
 
 def test_deactivated_user_cannot_login_or_use_token(client):
-    admin = register_and_login(client, "chefe")
+    admin = register_admin(client)
     user = register_and_login(client, "saindo")
     uid = client.get("/auth/me", headers=user).json()["id"]
     assert client.put(f"/admin/users/{uid}/active", headers=admin, json={"is_active": False}).status_code == 200
@@ -48,7 +48,7 @@ def test_deactivated_user_cannot_login_or_use_token(client):
 
 
 def test_admin_cannot_change_own_account_and_unknown_user_404(client):
-    admin = register_and_login(client, "chefe")
+    admin = register_admin(client)
     me = client.get("/auth/me", headers=admin).json()["id"]
     assert client.put(f"/admin/users/{me}/role", headers=admin, json={"role": "user"}).status_code == 400
     assert client.put("/admin/users/9999/active", headers=admin, json={"is_active": False}).status_code == 404

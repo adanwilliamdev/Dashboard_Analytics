@@ -6,6 +6,7 @@ Falhas do Redis nunca derrubam a API: o cache simplesmente e ignorado.
 """
 import json
 import logging
+import os
 import threading
 import time
 from typing import Any, Callable, Dict, Optional, Tuple
@@ -117,6 +118,14 @@ class Cache:
             logger.warning("cache indisponivel (clear): %s", exc)
 
 
+def _worker_count() -> int:
+    """Numero de processos da API (variavel padrao WEB_CONCURRENCY, lida tambem pelo uvicorn)."""
+    try:
+        return max(int(os.getenv("WEB_CONCURRENCY", "1")), 1)
+    except ValueError:
+        return 1
+
+
 def build_cache() -> Cache:
     from app.config import settings  # import tardio: o modulo continua testavel sem a stack web
 
@@ -125,6 +134,15 @@ def build_cache() -> Cache:
             return Cache(RedisBackend(settings.REDIS_URL), settings.CACHE_TTL_SECONDS)
         except Exception as exc:
             logger.warning("Redis indisponivel (%s); usando cache em memoria", exc)
+    workers = _worker_count()
+    if workers > 1 and settings.CACHE_TTL_SECONDS > 0:
+        # Cada worker teria o proprio cache e a invalidacao so valeria no que gravou: o usuario
+        # veria dado velho por ate CACHE_TTL_SECONDS. Sem Redis, e mais seguro nao cachear.
+        logger.warning(
+            "WEB_CONCURRENCY=%s sem REDIS_URL: cache desativado (memoria nao e compartilhada entre "
+            "workers). Defina REDIS_URL para habilitar o cache.", workers,
+        )
+        return Cache(MemoryBackend(), 0)
     return Cache(MemoryBackend(), settings.CACHE_TTL_SECONDS)
 
 
