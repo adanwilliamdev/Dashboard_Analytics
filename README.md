@@ -394,8 +394,7 @@ alembic revision --autogenerate -m "minha mudança"
 
 A migração `0002` inclui alterações relacionadas a orçamentos, perfis de acesso e precisão monetária, convertendo `amount` para `NUMERIC(12,2)`.
 
-A migração `0003` adiciona `users.token_version` (revogação de tokens ao trocar a senha) e um índice único em `lower(username)`. Se já existirem usernames que colidem ignorando maiúsculas (ex.: `Ana` e `ana`), a migração **para** listando-os: renomeie ou remova um dos lados e rode `alembic upgrade head` novamente.
-
+A migração `0003` adiciona `users.token_version` (revogação de tokens ao trocar a senha) e um índice único em `lower(username)`. Se já existirem usernames que colidem ignorando maiúsculas (ex.: `Ana` e `ana`), a migração falha e lista os registros conflitantes: renomeie ou remova um dos lados e rode `alembic upgrade head` novamente.
 Faça backup antes de migrar bancos com dados importantes. Em produção, confirme o estado do esquema antes de aplicar qualquer migração.
 
 ---
@@ -465,7 +464,7 @@ O endpoint `/analytics/overview` consolida os dados necessários para as cinco a
 - Paginação para consultas de transações.
 - Índices e tipos monetários adequados à persistência financeira.
 
-**Observação:** o cache em memória não é compartilhado entre processos. Com `WEB_CONCURRENCY` maior que 1 e **sem** `REDIS_URL`, a API desativa o cache (e registra um aviso), para que a invalidação após uma escrita nunca deixe outro worker servindo dado velho. O `docker compose` já sobe com Redis.
+**Observação:** o cache em memória não é compartilhado entre processos. Com `WEB_CONCURRENCY` maior que 1 e **sem** `REDIS_URL`, a API desativa o cache (e registra um aviso), para que a invalidação após uma escrita nunca deixe outro worker servindo dado velho. Para ambientes com múltiplas instâncias, utilize Redis quando suportado pela configuração do projeto. O `docker compose` já sobe com Redis.
 
 ### Fuso horário
 
@@ -481,7 +480,7 @@ Os logs `dashboard.*` (acesso, cache, segurança) são configurados na subida; a
 
 - **Previsões:** estimativas estatísticas baseadas no histórico, sem garantia de resultados futuros.
 - **Anomalias:** a detecção depende da quantidade e da qualidade dos dados históricos disponíveis.
-- **Rate limiting:** com `REDIS_URL` o contador de tentativas de login é compartilhado entre workers (janela fixa). Sem Redis ele é por processo, e se o Redis cair o login continua protegido por um contador local.
+- **Rate limiting:** com `REDIS_URL` o contador de tentativas de login é compartilhado entre workers (janela fixa). Sem Redis ele é por processo; múltiplos workers mantêm contadores separados, e se o Redis cair o login continua protegido por um contador local.
 - **Sessão do dashboard:** o login sobrevive ao F5 por um cookie `SameSite=Strict` (`Secure` em https) gravado via JavaScript, pois o Streamlit não grava cookies pelo servidor; por isso ele é legível por scripts da página. Defina `REMEMBER_SESSION=false` para desativar.
 - **Cache:** Redis permite compartilhar o cache entre instâncias quando corretamente configurado.
 - **Segurança:** credenciais de demonstração são destinadas exclusivamente ao ambiente local.
