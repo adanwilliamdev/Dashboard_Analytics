@@ -1,81 +1,84 @@
 # 📊 Dashboard Analytics
 
-**Plataforma de análise financeira desenvolvida com Python, FastAPI e Streamlit.**
+**Plataforma de análise financeira desenvolvida com Python, FastAPI, PostgreSQL e Streamlit.**
 
-Aplicação que combina uma API RESTful, persistência relacional e análise de dados para gerenciar transações financeiras, acompanhar orçamentos, identificar padrões de despesas e gerar previsões e relatórios.
+Aplicação que integra uma API RESTful, persistência relacional e análise de dados para gerenciamento de transações, controle de orçamentos, identificação de despesas atípicas e geração de previsões e relatórios financeiros.
 
-O projeto foi desenvolvido para explorar boas práticas de **backend, segurança, arquitetura modular, testes automatizados, análise estatística e containerização**.
+O projeto demonstra a aplicação prática de conceitos de **desenvolvimento backend, autenticação, modelagem de dados, arquitetura modular, testes automatizados e containerização**.
 
-## ✨ Funcionalidades
+## 🚀 Principais funcionalidades
 
-### 🔐 Autenticação e segurança
-
-- Autenticação baseada em JWT com PyJWT.
-- Hash de senhas com bcrypt.
-- Cadastro, login, consulta de perfil e alteração de senha.
-- Controle de acesso baseado em perfis: `user`, `viewer` e `admin`.
-- Proteção contra tentativas excessivas de login, com resposta HTTP `429`.
-- Revogação de tokens após alteração de senha.
-- Verificação de e-mail e recuperação de senha.
-- Exportação e exclusão dos dados da conta, incluindo recursos relacionados à LGPD.
-
-### ⚙️ Desenvolvimento Backend e API REST
+### Backend e API REST
 
 - API desenvolvida com FastAPI e Uvicorn.
-- Operações CRUD para receitas, despesas, categorias e orçamentos.
-- Validação de dados e separação entre modelos, schemas, regras de negócio e rotas.
-- Filtros por texto, categoria, tipo, período e faixa de valores.
-- Paginação e ordenação de transações.
-- Importação de arquivos CSV e OFX com opção de prevenção de duplicidades.
+- Operações CRUD para receitas, despesas e orçamentos.
+- Validação de dados e organização modular das rotas.
+- Filtros, paginação e ordenação de transações.
+- Importação de arquivos CSV e OFX com prevenção opcional de duplicidades.
 - Exportação de dados em CSV e Excel.
 - Endpoints para análises financeiras, previsões e relatórios.
-- Documentação interativa da API com Swagger UI e ReDoc.
+- Documentação interativa com Swagger UI e ReDoc.
 
-### 🗄️ Persistência e modelagem de dados
+### Segurança e autenticação
+
+- Autenticação baseada em JWT com PyJWT.
+- Proteção de senhas com hash bcrypt.
+- Cadastro, login, alteração de senha e consulta de perfil.
+- Controle de acesso baseado em funções: `user`, `viewer` e `admin`.
+- Limitação de tentativas de login.
+- Revogação de tokens após alteração de senha.
+- Recuperação de senha, verificação de e-mail e gerenciamento de dados pessoais.
+- Exportação e exclusão de dados da conta, com recursos relacionados à LGPD.
+
+### Banco de dados e persistência
 
 - PostgreSQL como banco de dados relacional.
 - SQLAlchemy 2 para mapeamento objeto-relacional (ORM).
 - Alembic para versionamento e aplicação de migrações.
-- Armazenamento de valores monetários com `NUMERIC(12,2)`.
-- Índices para apoiar consultas e restrições de unicidade.
-- Modelagem de usuários, transações, orçamentos e demais recursos financeiros.
-- Isolamento dos dados financeiros por usuário autenticado.
+- Valores monetários armazenados com `NUMERIC(12,2)`.
+- Índices e restrições de unicidade para integridade dos dados.
+- Separação dos dados financeiros por usuário autenticado.
 
-### 📈 Análise de dados e estatística
+### Análise de dados
 
-- Processamento e análise de dados com Pandas e NumPy.
-- Resumos financeiros e comparativos entre períodos.
-- Análise de receitas, despesas, saldo acumulado e taxa de poupança.
-- Séries temporais com médias móveis.
-- Agrupamento de despesas por categoria e dia da semana.
-- Identificação das maiores despesas.
-- Detecção de gastos atípicos com z-score modificado e histórico individual de transações.
+- Processamento de dados com Pandas e NumPy.
+- Indicadores financeiros e comparativos entre períodos.
+- Análises por categoria, dia da semana e maiores despesas.
+- Séries temporais com saldo acumulado e médias móveis.
+- Detecção de gastos atípicos usando z-score modificado e histórico individual.
 - Identificação de despesas recorrentes.
-- Projeções de despesas e saldo para os próximos 30 dias, utilizando nível, tendência amortecida e sazonalidade semanal.
+- Projeção de despesas e saldo para os próximos 30 dias, considerando nível, tendência amortecida e sazonalidade semanal.
 
-### 🎯 Orçamentos e planejamento financeiro
+### Dashboard e relatórios
 
-- Definição de limites mensais por categoria.
-- Acompanhamento do consumo dos orçamentos.
-- Projeção de gastos até o final do mês.
-- Identificação de categorias com risco de ultrapassar o limite.
-- Contas e carteiras com cálculo de saldo.
-- Metas de poupança com acompanhamento de progresso e prazo.
+- Interface interativa com Streamlit e Plotly.
+- Cinco áreas: visão geral, análises, orçamentos, transações e insights.
+- Acompanhamento de limites mensais e projeção de gastos.
+- Contas, carteiras e metas de poupança.
 - Alertas de orçamento por e-mail e webhook.
+- Exportação de relatórios em Excel e geração de relatórios executivos em PDF.
 
-### 📊 Dashboard e relatórios
+## 🛠️ Stack tecnológica
 
-- Dashboard interativo desenvolvido com Streamlit e Plotly.
-- Cinco áreas de visualização: visão geral, análises, orçamentos, transações e insights.
-- Gráficos e indicadores para exploração dos dados financeiros.
-- Edição de transações diretamente na interface.
-- Insights gerados a partir dos dados disponíveis.
-- Exportação de relatórios em Excel.
-- Geração de relatório executivo em PDF.
+| Categoria | Tecnologias |
+|---|---|
+| Linguagem | Python |
+| API e backend | FastAPI, Uvicorn |
+| Banco de dados | PostgreSQL |
+| ORM e migrações | SQLAlchemy 2, Alembic |
+| Autenticação | PyJWT, bcrypt |
+| Análise de dados | Pandas, NumPy |
+| Dashboard e gráficos | Streamlit, Plotly |
+| Cache | Redis |
+| Relatórios | OpenPyXL, ReportLab |
+| Testes | pytest |
+| Qualidade de código | Ruff |
+| Infraestrutura | Docker, Docker Compose |
+| CI/CD | GitHub Actions |
 
 ## 🏗️ Arquitetura
 
-A aplicação utiliza uma arquitetura modular que separa a interface de visualização, a API, as regras de negócio, a persistência e os componentes analíticos.
+A aplicação separa as responsabilidades entre API, regras de negócio, persistência, processamento analítico, relatórios e interface de visualização.
 
 ```text
 dashboard-analytics/
@@ -109,36 +112,17 @@ dashboard-analytics/
 └── README.md
 ```
 
-### Decisões de arquitetura
+### Decisões técnicas
 
-- **Separação de responsabilidades:** rotas, autenticação, persistência, análises e relatórios são organizados em módulos distintos.
-- **Núcleo analítico desacoplado:** cálculos financeiros e regras estatísticas podem ser testados sem iniciar a API ou acessar o banco de dados.
-- **Persistência versionada:** Alembic mantém o histórico de alterações do esquema do banco.
-- **Endpoint consolidado:** `/analytics/overview` reúne dados utilizados pelas diferentes áreas do dashboard, reduzindo chamadas repetidas.
-- **Cache com invalidação:** resultados são armazenados por usuário durante 30 segundos, com suporte a memória ou Redis conforme a configuração.
-- **Precisão monetária:** valores financeiros são persistidos com `NUMERIC(12,2)`, evitando depender de tipos de ponto flutuante para armazenar dinheiro.
-- **Configuração por ambiente:** credenciais, chave secreta, conexão com banco e parâmetros operacionais são definidos por variáveis de ambiente.
+- **Separação de responsabilidades:** os módulos de autenticação, rotas, persistência, análises e relatórios possuem responsabilidades distintas.
+- **Núcleo analítico desacoplado:** cálculos financeiros podem ser testados sem inicializar a API ou acessar o banco de dados.
+- **Migrações versionadas:** Alembic mantém o histórico de alterações no esquema relacional.
+- **Precisão financeira:** `NUMERIC(12,2)` evita depender de ponto flutuante para armazenar valores monetários.
+- **Endpoint consolidado:** `/analytics/overview` reúne os dados utilizados pelas diferentes áreas do dashboard, reduzindo chamadas repetidas.
+- **Cache com invalidação:** os dados são armazenados por usuário durante 30 segundos, utilizando memória ou Redis conforme a configuração.
+- **Configuração por ambiente:** credenciais e parâmetros operacionais são definidos por variáveis de ambiente.
 
-## 🛠️ Tecnologias
-
-| Categoria | Tecnologias |
-|---|---|
-| Linguagem | Python |
-| Backend e API | FastAPI, Uvicorn |
-| Banco de dados | PostgreSQL |
-| ORM e migrações | SQLAlchemy 2, Alembic |
-| Autenticação | PyJWT, bcrypt |
-| Análise de dados | Pandas, NumPy |
-| Visualização | Streamlit, Plotly |
-| Cache | Redis |
-| Relatórios | OpenPyXL, ReportLab |
-| Testes | pytest |
-| Qualidade de código | Ruff |
-| Infraestrutura | Docker, Docker Compose |
-| CI/CD | GitHub Actions |
-| Versionamento | Git, GitHub |
-
-## 🚀 Como executar localmente
+## 💻 Como executar localmente
 
 ### Pré-requisitos
 
@@ -154,9 +138,9 @@ git clone https://github.com/SEU_USUARIO/dashboard-analytics.git
 cd dashboard-analytics
 ```
 
-Substitua `SEU_USUARIO` pelo usuário correto e ajuste o nome do repositório, se necessário.
+Substitua `SEU_USUARIO` pelo nome de usuário correto e ajuste o nome do repositório, se necessário.
 
-### 2. Crie e ative o ambiente virtual
+### 2. Crie o ambiente virtual
 
 **Windows PowerShell**
 
@@ -178,7 +162,7 @@ source .venv/bin/activate
 pip install -r requirements-dev.txt
 ```
 
-### 4. Configure o ambiente
+### 4. Configure as variáveis de ambiente
 
 **Windows PowerShell**
 
@@ -192,54 +176,51 @@ Copy-Item .env.example .env
 cp .env.example .env
 ```
 
-Configure a URL do banco de dados, a `SECRET_KEY` e as demais variáveis exigidas pela aplicação no arquivo `.env`.
+Configure a conexão com o banco de dados, a `SECRET_KEY` e as demais variáveis necessárias no arquivo `.env`.
 
-Não publique credenciais, chaves secretas ou arquivos `.env` no repositório.
+Nunca publique credenciais ou chaves secretas no repositório.
 
-### 5. Inicialize os dados de demonstração
+### 5. Prepare o banco e os dados demonstrativos
 
-```bash
-python seed_data.py
-```
-
-O script prepara dados demonstrativos com histórico financeiro para testes e exploração do dashboard.
-
-Para gerar um histórico de 12 meses:
-
-```bash
-python seed_data.py --months 12
-```
-
-Para recriar os dados da demonstração:
-
-```bash
-python seed_data.py --reset
-```
-
-As credenciais demonstrativas devem ser utilizadas somente em ambiente local.
-
-### 6. Aplique as migrações
+Aplique as migrações:
 
 ```bash
 alembic upgrade head
 ```
 
-Faça backup antes de aplicar migrações em bancos que contenham dados importantes.
+Inicialize os dados de demonstração:
 
-### 7. Inicie a API
+```bash
+python seed_data.py
+```
+
+Para gerar 12 meses de histórico:
+
+```bash
+python seed_data.py --months 12
+```
+
+Para recriar os dados demonstrativos:
+
+```bash
+python seed_data.py --reset
+```
+
+Utilize as credenciais de demonstração somente no ambiente local.
+
+### 6. Inicie a API
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-Endpoints locais:
+A API estará disponível em `http://localhost:8000`.
 
-- API: `http://localhost:8000`
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 - Healthcheck: `http://localhost:8000/health`
 
-### 8. Inicie o dashboard
+### 7. Inicie o dashboard
 
 Em outro terminal, com o ambiente virtual ativado:
 
@@ -251,19 +232,7 @@ Acesse `http://localhost:8501`.
 
 ## 🐳 Executando com Docker
 
-Com Docker e Docker Compose instalados, configure o ambiente:
-
-```bash
-cp .env.example .env
-```
-
-No Windows PowerShell:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Defina os valores necessários, incluindo `SECRET_KEY` e `POSTGRES_PASSWORD`.
+Configure o arquivo `.env` a partir do exemplo e defina as variáveis necessárias, incluindo `SECRET_KEY` e `POSTGRES_PASSWORD`.
 
 Inicie os serviços:
 
@@ -271,7 +240,7 @@ Inicie os serviços:
 docker compose up --build
 ```
 
-Para iniciar em segundo plano:
+Para executar em segundo plano:
 
 ```bash
 docker compose -f docker-compose.yml up -d --build
@@ -289,38 +258,17 @@ Encerre os serviços:
 docker compose down
 ```
 
-A disponibilidade de cada serviço depende da configuração dos arquivos Compose. Em produção, utilize credenciais seguras e não utilize a chave secreta de exemplo.
-
-## 🧪 Testes e qualidade de código
-
-Execute a suíte de testes:
-
-```bash
-pytest
-```
-
-Execute os testes do núcleo analítico e da importação CSV:
-
-```bash
-pytest tests/test_analytics_core.py tests/test_csv_io.py
-```
-
-Verifique a qualidade do código:
-
-```bash
-ruff check .
-```
-
-O projeto utiliza testes automatizados para validar regras analíticas, processamento de arquivos CSV e endpoints da aplicação. A integração contínua é configurada com GitHub Actions.
+A disponibilidade dos serviços depende da configuração dos arquivos Compose. Em produção, utilize chaves fortes e credenciais próprias.
 
 ## 🔌 Principais endpoints
 
-| Método | Endpoint | Responsabilidade |
+| Método | Endpoint | Descrição |
 |---|---|---|
 | POST | `/auth/register` | Cadastro de usuário |
 | POST | `/auth/login` | Autenticação e emissão de JWT |
-| GET | `/auth/me` | Perfil do usuário autenticado |
-| GET | `/transactions/` | Consulta de transações |
+| GET | `/auth/me` | Consulta do perfil autenticado |
+| POST | `/auth/change-password` | Alteração de senha |
+| GET | `/transactions/` | Listagem de transações |
 | POST | `/transactions/` | Criação de transações |
 | PUT | `/transactions/{id}` | Atualização de transações |
 | DELETE | `/transactions/{id}` | Exclusão de transações |
@@ -333,39 +281,50 @@ O projeto utiliza testes automatizados para validar regras analíticas, processa
 | GET | `/analytics/report.pdf` | Relatório executivo em PDF |
 | GET | `/admin/users` | Administração de usuários |
 
-A API também oferece endpoints de análises por categoria, séries temporais, comparativos mensais, despesas recorrentes e gerenciamento de orçamentos.
+A API também disponibiliza análises por categoria, séries temporais, comparativos mensais, despesas recorrentes e gerenciamento de orçamentos.
 
-Consulte o Swagger UI para verificar os parâmetros, os schemas das requisições e as respostas disponíveis.
+Consulte o Swagger UI para conferir os parâmetros, schemas e respostas de cada endpoint.
 
-## 🔒 Perfis de acesso
+## 🧪 Testes e qualidade de código
 
-| Perfil | Responsabilidade |
-|---|---|
-| `user` | Gerenciamento dos próprios dados e recursos permitidos |
-| `viewer` | Acesso somente para leitura |
-| `admin` | Gerenciamento de usuários e permissões administrativas |
+Execute os testes automatizados:
 
-O cadastro público não concede privilégios administrativos. A criação e a promoção de administradores são realizadas por comandos de administração da aplicação.
+```bash
+pytest
+```
+
+Execute os testes do núcleo analítico e do processamento CSV:
+
+```bash
+pytest tests/test_analytics_core.py tests/test_csv_io.py
+```
+
+Verifique a qualidade estática do código:
+
+```bash
+ruff check .
+```
+
+Os testes contemplam regras analíticas, processamento de arquivos CSV e endpoints da aplicação. O projeto também utiliza GitHub Actions para integração contínua.
 
 ## ⚙️ Desempenho e confiabilidade
 
 - Cache por usuário com TTL de 30 segundos.
-- Invalidação do cache após operações de escrita.
+- Invalidação após operações de escrita.
 - Suporte a Redis para compartilhamento do cache entre instâncias.
 - Paginação de transações.
-- Controle de tentativas excessivas de login.
-- Healthcheck para acompanhamento da disponibilidade da API.
-- Execução do container da API sem privilégios de root.
-- Tratamento de datas com base em `APP_TIMEZONE`, cujo padrão é `America/Sao_Paulo`.
+- Limitação de tentativas de login.
+- Healthchecks e execução da API em container sem privilégios de root.
+- Tratamento de datas conforme `APP_TIMEZONE`, com padrão `America/Sao_Paulo`.
 
-Quando houver múltiplos workers, a configuração de cache e limitação de tentativas deve considerar o compartilhamento de estado. O comportamento depende da disponibilidade e da configuração do Redis.
+Quando há múltiplos workers, a configuração do cache e do controle de tentativas deve considerar o compartilhamento de estado. Sem Redis, o cache em memória não é compartilhado entre processos.
 
-## 📌 Limitações conhecidas
+## 📌 Limitações
 
-- As previsões financeiras são estimativas estatísticas baseadas no histórico disponível, não garantias de resultados futuros.
-- A detecção de anomalias depende da quantidade e da qualidade dos dados históricos.
-- A sessão persistente do dashboard utiliza um cookie acessível por JavaScript, conforme a implementação atual.
-- A aplicação exige configuração adequada de credenciais, variáveis de ambiente e migrações antes de ser utilizada em produção.
+- As previsões são estimativas estatísticas e não garantem resultados financeiros futuros.
+- A detecção de anomalias depende da quantidade e da qualidade do histórico disponível.
+- A sessão persistente do dashboard utiliza um cookie acessível por JavaScript na implementação atual.
+- A utilização em produção exige configuração adequada de credenciais, variáveis de ambiente, banco de dados e migrações.
 
 ## 📄 Licença
 
@@ -373,4 +332,4 @@ Este projeto está licenciado sob a licença [MIT](LICENSE).
 
 ---
 
-**Desenvolvido com Python, FastAPI e SQLAlchemy para explorar desenvolvimento backend, APIs REST, modelagem relacional, autenticação, análise de dados, testes automatizados e boas práticas de engenharia de software.**
+**Desenvolvido com Python para demonstrar conhecimentos práticos em desenvolvimento backend, APIs REST, persistência relacional, autenticação, análise de dados, testes automatizados e arquitetura de software.**
