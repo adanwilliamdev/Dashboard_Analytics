@@ -1,16 +1,16 @@
 """CRUD de transacoes + filtros, busca, exportacao e importacao CSV."""
 import csv
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Literal, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app import csv_io, models, reports, schemas
+from app import alerts, csv_io, models, ofx_io, recurring, reports, schemas
 from app.auth import get_current_user, require_writer
 from app.cache import get_cache, user_ns
 from app.database import get_db
@@ -38,6 +38,7 @@ class TransactionFilters:
         q: Optional[str] = Query(None, max_length=100, description="Busca na descricao"),
         min_amount: Optional[float] = Query(None, ge=0),
         max_amount: Optional[float] = Query(None, ge=0),
+        account_id: Optional[int] = Query(None, ge=1, description="Somente desta conta/carteira"),
     ):
         self.category = category.strip().lower() if category else None
         self.type = type
@@ -47,6 +48,7 @@ class TransactionFilters:
         self.q = q.strip().lower() if q else None
         self.min_amount = min_amount
         self.max_amount = max_amount
+        self.account_id = account_id
 
     def apply(self, query, owner_id: int):
         T = models.Transaction
@@ -65,6 +67,8 @@ class TransactionFilters:
             query = query.filter(T.amount >= self.min_amount)
         if self.max_amount is not None:
             query = query.filter(T.amount <= self.max_amount)
+        if self.account_id is not None:
+            query = query.filter(T.account_id == self.account_id)
         return query
 
 
@@ -79,6 +83,19 @@ def _get_owned(db: Session, tx_id: int, owner_id: int) -> models.Transaction:
     return tx
 
 
+def check_account(db: Session, account_id: Optional[int], owner_id: int) -> None:
+    """A conta informada precisa existir e ser do proprio usuario."""
+    if account_id is None:
+        return
+    exists = (
+        db.query(models.Account.id)
+        .filter(models.Account.id == account_id, models.Account.owner_id == owner_id)
+        .first()
+    )
+    if not exists:
+        raise HTTPException(status_code=422, detail="Conta nao encontrada")
+
+
 def _csv_safe(value: str) -> str:
     """Evita 'CSV injection' (formulas) ao abrir no Excel/Sheets."""
     return "'" + value if value[:1] in ("=", "+", "-", "@", "\t", "\r") else value
@@ -87,21 +104,26 @@ def _csv_safe(value: str) -> str:
 @router.post("/", response_model=schemas.TransactionOut, status_code=201)
 def create_transaction(
     payload: schemas.TransactionCreate,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_writer),
 ):
+    check_account(db, payload.account_id, current_user.id)
     tx = models.Transaction(
         description=payload.description,
         amount=payload.amount,
         category=payload.category,
         type=payload.type,
         date=payload.date or local_now(),
+        account_id=payload.account_id,
         owner_id=current_user.id,
     )
     db.add(tx)
     db.commit()
     db.refresh(tx)
     get_cache().invalidate(user_ns(current_user.id))
+    if tx.type == "expense":
+        alerts.schedule(background, current_user.id)
     return tx
 
 
@@ -117,6 +139,7 @@ def list_transactions(
     current_user: models.User = Depends(get_current_user),
 ):
     """Lista com filtros/ordenacao. O total filtrado vai no header `X-Total-Count`."""
+    recurring.materialize_due(db, current_user.id)  # gera as recorrentes vencidas antes de listar
     base = filters.apply(db.query(models.Transaction), current_user.id)
     response.headers["X-Total-Count"] = str(base.order_by(None).count())
 
@@ -203,12 +226,23 @@ def export_xlsx(
 
 
 @router.post("/import", response_model=schemas.ImportResult)
-def import_csv(
+def import_file(
+    background: BackgroundTasks,
     file: UploadFile = File(...),
+    skip_duplicates: bool = Query(
+        True, description="Ignora linhas que ja existem (mesmo dia, valor, descricao e tipo)"
+    ),
+    account_id: Optional[int] = Query(None, ge=1, description="Vincula as importadas a esta conta"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_writer),
 ):
-    """Importa CSV (colunas: description/descricao, amount/valor, category, type, date)."""
+    """Importa CSV (description/descricao, amount/valor, category, type, date) ou extrato OFX.
+
+    Com `skip_duplicates` (padrao), reimportar o mesmo arquivo nao duplica nada: cada linha e
+    comparada, por hash de (dia + valor + descricao + tipo), com o que o usuario ja tem. Linhas
+    repetidas DENTRO do mesmo arquivo continuam valendo (dois cafes iguais no mesmo dia).
+    """
+    check_account(db, account_id, current_user.id)
     raw = file.file.read(csv_io.MAX_BYTES + 1)
     if len(raw) > csv_io.MAX_BYTES:
         raise HTTPException(status_code=413, detail="Arquivo maior que 2 MB")
@@ -217,29 +251,57 @@ def import_csv(
     except UnicodeDecodeError:
         text = raw.decode("latin-1")
 
-    parsed, errors = csv_io.parse_transactions_csv(text)
-    valid = []
+    if ofx_io.looks_like_ofx(file.filename, text):
+        parsed, errors = ofx_io.parse_ofx(text)
+    else:
+        parsed, errors = csv_io.parse_transactions_csv(text)
+
+    items = []  # (TransactionCreate, data efetiva)
     for i, row in enumerate(parsed):
         try:
             item = schemas.TransactionCreate(**row)
         except ValidationError as exc:
             errors.append({"row": i + 2, "error": "; ".join(e["msg"] for e in exc.errors())})
             continue
-        valid.append(
+        items.append((item, item.date or local_now()))
+
+    duplicates = 0
+    if skip_duplicates and items:
+        first = min(d for _, d in items).replace(hour=0, minute=0, second=0, microsecond=0)
+        last = max(d for _, d in items).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+        T = models.Transaction
+        existing = {
+            csv_io.row_fingerprint(*row)
+            for row in db.query(T.date, T.amount, T.description, T.type)
+            .filter(T.owner_id == current_user.id, T.date >= first, T.date < last)
+            .all()
+        }
+        fresh = []
+        for item, when in items:
+            if csv_io.row_fingerprint(when, item.amount, item.description, item.type) in existing:
+                duplicates += 1
+            else:
+                fresh.append((item, when))
+        items = fresh
+
+    if items:
+        db.add_all(
             models.Transaction(
                 description=item.description,
                 amount=item.amount,
                 category=item.category,
                 type=item.type,
-                date=item.date or local_now(),
+                date=when,
+                account_id=account_id,
                 owner_id=current_user.id,
             )
+            for item, when in items
         )
-    if valid:
-        db.add_all(valid)
         db.commit()
         get_cache().invalidate(user_ns(current_user.id))
-    return {"imported": len(valid), "skipped": len(errors), "errors": errors[:20]}
+        if any(item.type == "expense" for item, _ in items):
+            alerts.schedule(background, current_user.id)
+    return {"imported": len(items), "skipped": len(errors), "duplicates": duplicates, "errors": errors[:20]}
 
 
 @router.get("/{tx_id}", response_model=schemas.TransactionOut)
@@ -255,17 +317,23 @@ def get_transaction(
 def update_transaction(
     tx_id: int,
     payload: schemas.TransactionUpdate,
+    background: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_writer),
 ):
     tx = _get_owned(db, tx_id, current_user.id)
-    # campos nao-anulaveis: ignora null explicito
+    # campos nao-anulaveis: ignora null explicito; account_id e a excecao (null desvincula a conta)
     data = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
+    if "account_id" in payload.model_fields_set:
+        data["account_id"] = payload.account_id
+    check_account(db, data.get("account_id"), current_user.id)
     for key, value in data.items():
         setattr(tx, key, value)
     db.commit()
     db.refresh(tx)
     get_cache().invalidate(user_ns(current_user.id))
+    if tx.type == "expense":
+        alerts.schedule(background, current_user.id)
     return tx
 
 

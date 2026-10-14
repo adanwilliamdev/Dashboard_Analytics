@@ -47,3 +47,12 @@ def test_parse_csv_missing_columns():
 def test_parse_csv_bom_and_blank_lines():
     rows, errors = csv_io.parse_transactions_csv("\ufeffdescription,amount\nA,1\n,\n\nB,2\n")
     assert [r["description"] for r in rows] == ["A", "B"] and errors == []
+
+
+def test_row_fingerprint_ignores_time_case_and_spaces_but_not_type():
+    a = csv_io.row_fingerprint(datetime(2026, 10, 9, 18, 30), 150.5, "Mercado  Central", "expense")
+    b = csv_io.row_fingerprint(datetime(2026, 10, 9), 150.50, " mercado central ", "expense")
+    assert a == b
+    assert a != csv_io.row_fingerprint(datetime(2026, 10, 10), 150.5, "Mercado Central", "expense")  # outro dia
+    assert a != csv_io.row_fingerprint(datetime(2026, 10, 9), 150.51, "Mercado Central", "expense")  # outro valor
+    assert a != csv_io.row_fingerprint(datetime(2026, 10, 9), 150.5, "Mercado Central", "income")  # estorno

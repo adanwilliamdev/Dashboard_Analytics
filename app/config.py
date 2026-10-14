@@ -44,6 +44,23 @@ class Settings(BaseSettings):
     LOGIN_MAX_ATTEMPTS: int = 5
     LOGIN_WINDOW_SECONDS: int = 300
 
+    # E-mail (reset de senha, verificacao de e-mail e alertas). Sem SMTP_HOST nada e enviado:
+    # fora de producao o conteudo (com o link) vai para o log, para facilitar o desenvolvimento.
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "Dashboard Analytics <no-reply@localhost>"
+    SMTP_STARTTLS: bool = True
+    # URL publica do dashboard (Streamlit): os links dos e-mails apontam para ela
+    FRONTEND_URL: str = "http://localhost:8501"
+    PASSWORD_RESET_EXPIRE_MINUTES: int = 30
+    EMAIL_VERIFY_EXPIRE_HOURS: int = 48
+    # true = o login exige e-mail verificado (contas antigas ficam bloqueadas ate verificar)
+    REQUIRE_EMAIL_VERIFICATION: bool = False
+    # webhooks de alerta so aceitam destinos publicos (anti-SSRF); true libera redes privadas (self-host)
+    ALERT_WEBHOOK_ALLOW_PRIVATE: bool = False
+
     @property
     def cors_origins_list(self) -> List[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]

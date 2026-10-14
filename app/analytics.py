@@ -108,13 +108,24 @@ def get_anomalies(db: Session, owner_id: int, days: int = 90, limit: int = 20) -
 
 def get_recurring(db: Session, owner_id: int) -> List[Dict[str, Any]]:
     df, _ = _load_window(db, owner_id, HISTORY_DAYS // 2)
-    return core.detect_recurring(df)
+    return _flag_automated(db, owner_id, core.detect_recurring(df))
 
 
 def get_budget_status(db: Session, owner_id: int) -> List[Dict[str, Any]]:
     today = _today()
     df = _load_df(db, owner_id, today.replace(day=1))
     return core.budget_status(df, _budgets(db, owner_id), today=today.to_pydatetime())
+
+
+def _flag_automated(db: Session, owner_id: int, detected: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Marca os recorrentes detectados que ja tem regra automatica (mesma descricao e tipo)."""
+    if not detected:
+        return detected
+    rules = db.query(models.RecurringRule.description, models.RecurringRule.type).filter(
+        models.RecurringRule.owner_id == owner_id
+    )
+    automated = {(d.strip().lower(), t) for d, t in rules}
+    return [{**r, "automated": (r["description"].strip().lower(), r["type"]) in automated} for r in detected]
 
 
 # ---------------------------------------------------------------- overview
@@ -139,7 +150,7 @@ def get_overview(db: Session, owner_id: int, days: int = 30) -> Dict[str, Any]:
         "monthly": core.monthly(df, 12),
         "forecast": core.forecast(df, horizon=30, today=today.to_pydatetime()),
         "anomalies": anomalies,
-        "recurring": core.detect_recurring(df),
+        "recurring": _flag_automated(db, owner_id, core.detect_recurring(df)),
         "budgets": budgets,
         "insights": core.build_insights(summary, categories, weekday, anomalies, budgets, days),
     }

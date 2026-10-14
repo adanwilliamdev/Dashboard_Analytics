@@ -1,5 +1,6 @@
 """Leitura tolerante de CSV de transacoes (pt-BR e en)."""
 import csv
+import hashlib
 import io
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
@@ -21,6 +22,24 @@ _TYPE_MAP = {
     "debito": "expense", "débito": "expense", "d": "expense",
 }
 _DATE_FORMATS = ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%d/%m/%Y", "%d/%m/%Y %H:%M", "%d-%m-%Y")
+
+
+def row_fingerprint(when: datetime, amount: float, description: str, tx_type: str) -> str:
+    """Hash estavel de (dia + valor + descricao + tipo), usado para nao importar a mesma linha duas vezes.
+
+    Ignora a hora, caixa e espacos repetidos: o mesmo lancamento exportado duas vezes pelo banco
+    (ou um CSV reimportado) gera o mesmo hash. O tipo entra para que um estorno (mesmo valor e
+    descricao, sentido oposto) nao seja confundido com o lancamento original.
+    """
+    key = "|".join(
+        [
+            when.strftime("%Y-%m-%d"),
+            f"{float(amount):.2f}",
+            " ".join(description.casefold().split()),
+            tx_type,
+        ]
+    )
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
 
 def parse_amount(raw: str) -> float:

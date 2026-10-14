@@ -54,6 +54,18 @@ O projeto combina **desenvolvimento backend, engenharia de dados, análise estat
 - Relatórios Excel com resumo, transações, categorias e comparativo mensal.
 - Relatório executivo em PDF para o período selecionado.
 
+### 🧩 Gestão, produto e LGPD
+- **Edição de transações** direto na tabela do dashboard (descrição, categoria, tipo, valor e data).
+- **Importação sem duplicar**: hash de dia + valor + descrição + tipo; reimportar o mesmo arquivo não duplica (opção `skip_duplicates`, ligada por padrão). Aceita **CSV e OFX**.
+- **Categorias**: renomear e unir (atualiza transações, recorrentes e orçamentos; ao unir, o limite do destino prevalece).
+- **Contas/carteiras** com saldo (saldo inicial + receitas − despesas) e filtro por conta.
+- **Metas de poupança** com progresso, prazo e quanto guardar por mês.
+- **Transações recorrentes** que se criam sozinhas (ao abrir o painel ou via `python -m app.cli run-recurring` no cron); as detectadas podem ser automatizadas com um clique.
+- **Alertas de orçamento** por e-mail e/ou webhook (uma vez por categoria/mês/limiar; webhook com proteção SSRF).
+- **LGPD**: exportação completa dos dados (`GET /auth/me/export`), exclusão da conta e de todos os dados (`DELETE /auth/me`, exige senha), reset de senha por e-mail e verificação de e-mail.
+
+> Atualizando um banco existente: rode `alembic upgrade head` (migração `0004`). `AUTO_CREATE_TABLES` só cria tabelas novas, não adiciona colunas.
+
 ### ⚡ Infraestrutura e qualidade
 - API RESTful com FastAPI.
 - Persistência em banco de dados relacional.

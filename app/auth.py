@@ -1,6 +1,8 @@
 """Autenticacao: hash de senhas (bcrypt direto) + JWT (PyJWT)."""
+import hashlib
+import hmac
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import bcrypt
 import jwt
@@ -55,6 +57,44 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
+def _password_fingerprint(user: models.User) -> str:
+    """Muda quando a senha muda: torna o link de reset de uso unico."""
+    return hashlib.sha256(user.hashed_password.encode("ascii")).hexdigest()[:16]
+
+
+def create_reset_token(user: models.User) -> str:
+    return create_access_token(
+        {"sub": user.username, "purpose": "reset", "tv": user.token_version or 0, "pw": _password_fingerprint(user)},
+        expires_delta=timedelta(minutes=settings.PASSWORD_RESET_EXPIRE_MINUTES),
+    )
+
+
+def create_verify_token(user: models.User) -> str:
+    return create_access_token(
+        {"sub": user.username, "purpose": "verify", "email": user.email},
+        expires_delta=timedelta(hours=settings.EMAIL_VERIFY_EXPIRE_HOURS),
+    )
+
+
+def decode_purpose_token(token: str, purpose: str) -> Dict[str, Any]:
+    """Decodifica um token de reset/verificacao. Levanta HTTP 400 generico se invalido/expirado."""
+    invalid = HTTPException(status_code=400, detail="Link invalido ou expirado")
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except jwt.PyJWTError:
+        raise invalid
+    if payload.get("purpose") != purpose or not payload.get("sub"):
+        raise invalid
+    return payload
+
+
+def reset_token_matches(user: models.User, payload: Dict[str, Any]) -> bool:
+    return (
+        int(payload.get("tv", -1)) == int(user.token_version or 0)
+        and hmac.compare_digest(str(payload.get("pw", "")), _password_fingerprint(user))
+    )
+
+
 def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
@@ -67,6 +107,10 @@ def get_current_user(
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     except jwt.PyJWTError:
+        raise credentials_exception
+
+    # tokens de reset/verificacao (claim "purpose") nunca valem como token de acesso
+    if payload.get("purpose"):
         raise credentials_exception
 
     username = payload.get("sub")

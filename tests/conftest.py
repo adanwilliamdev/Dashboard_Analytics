@@ -22,6 +22,7 @@ def client():
 
     from app.database import Base, engine
     from app.main import app
+    from app import mailer
     from app.cache import get_cache
     from app.security import login_limiter
 
@@ -29,6 +30,7 @@ def client():
     Base.metadata.create_all(bind=engine)
     login_limiter.reset_all()
     get_cache().clear()
+    mailer.outbox.clear()
     with TestClient(app) as c:
         yield c
 

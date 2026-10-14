@@ -14,7 +14,18 @@ from app import __version__, models  # noqa: F401  (registra os modelos no metad
 from app.config import settings
 from app.database import Base, engine, get_db
 from app.logging_config import setup_logging
-from app.routers import admin, analytics_router, auth_router, budgets, transactions
+from app.routers import (
+    accounts,
+    admin,
+    alerts_router,
+    analytics_router,
+    auth_router,
+    budgets,
+    categories,
+    goals,
+    recurring_router,
+    transactions,
+)
 
 setup_logging(settings.LOG_LEVEL)
 logger = logging.getLogger("dashboard.access")
@@ -67,6 +78,11 @@ async def timing_middleware(request: Request, call_next):
 app.include_router(auth_router.router)
 app.include_router(transactions.router)
 app.include_router(budgets.router)
+app.include_router(categories.router)
+app.include_router(accounts.router)
+app.include_router(goals.router)
+app.include_router(recurring_router.router)
+app.include_router(alerts_router.router)
 app.include_router(analytics_router.router)
 app.include_router(admin.router)
 

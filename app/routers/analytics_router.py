@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 
 from app import analytics, models, reports
+from app import recurring as recurring_service  # o nome `recurring` e da rota abaixo
 from app.auth import get_current_user
 from app.cache import get_cache, user_ns
 from app.database import get_db
@@ -24,6 +25,7 @@ def overview(
     user: models.User = Depends(get_current_user),
 ):
     """Tudo que o dashboard precisa, em uma unica chamada (com cache por usuario)."""
+    recurring_service.materialize_due(db, user.id)  # antes do cache: assim ele ja enxerga as recorrentes geradas
     return _cached_overview(db, user.id, days)
 
 
@@ -118,4 +120,5 @@ def recurring(db: Session = Depends(get_db), user: models.User = Depends(get_cur
 
 @router.get("/budgets")
 def budgets(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    recurring_service.materialize_due(db, user.id)
     return analytics.get_budget_status(db, user.id)
